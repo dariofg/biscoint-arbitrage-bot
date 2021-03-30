@@ -153,15 +153,35 @@ async function tradeCycle() {
                 `[${tradeCycleCount}] Only the first leg of the arbitrage was executed. ` +
                 'Trying to execute it at a possible loss.',
               );
-              secondLeg = await bc.offer({
-                amount,
-                isQuote,
-                op: secondOp,
-              });
-              await bc.confirmOffer({
-                offerId: secondLeg.offerId,
-              });
-              handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
+              for ($i = 0; $i < 10; $i++)
+              {
+                try {
+                  secondLeg = await bc.offer({
+                    amount,
+                    isQuote,
+                    op: secondOp,
+                  });
+
+                  let precoCompra = isQuote ? buyOffer.efPrice : secondLeg.efPrice;
+                  let precoVenda = isQuote ? secondLeg.efPrice : sellOffer.efPrice;
+
+                  let lucro = profit(precoCompra, precoVenda);
+
+                  if (lucro >= -minProfitPercent) {
+
+                    await bc.confirmOffer({
+                      offerId: secondLeg.offerId,
+                    });
+                    handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
+
+                    break;
+                  } else
+                    sleep(500);
+                } catch(error) {
+                  console.error(error);
+                  sleep(500);
+                }
+              }
             }
           } catch (error) {
             handleMessage(
