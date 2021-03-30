@@ -63,7 +63,7 @@ async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
 
-  let amount = isQuote ? amountBRL : amountBTC; 
+  let amount = isQuote ? amountBRL : amountBTC;
 
   tradeCycleCount += 1;
   const tradeCycleStartedAt = Date.now();
@@ -153,7 +153,7 @@ async function tradeCycle() {
                 `[${tradeCycleCount}] Only the first leg of the arbitrage was executed. ` +
                 'Trying to execute it at a possible loss.',
               );
-              for ($i = 0; $i < 10; $i++)
+              for (let i = 0; i < 10; i++)
               {
                 try {
                   secondLeg = await bc.offer({
@@ -176,11 +176,14 @@ async function tradeCycle() {
 
                     break;
                   } else
-                    sleep(500);
-                } catch(error) {
+                    await sleep(500);
+                } catch (error) {
                   console.error(error);
-                  sleep(500);
+                  await sleep(500);
                 }
+              }
+              if (i == 10) {
+                throw new Error("Failed after 10 tries.");
               }
             }
           } catch (error) {
