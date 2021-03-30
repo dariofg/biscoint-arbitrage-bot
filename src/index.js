@@ -131,6 +131,7 @@ async function tradeCycle() {
 
         handleMessage(`[${tradeCycleCount}] Success, profit: + ${profit.toFixed(3)}% (${finishedAt - startedAt} ms)`);
         play();
+        checkBalances();
       } catch (error) {
         handleMessage(`[${tradeCycleCount}] Error on confirm offer: ${error.error}`, 'error');
         console.error(error);
@@ -174,6 +175,8 @@ async function tradeCycle() {
                     });
                     handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
 
+                    checkBalances();
+                    
                     break;
                   } else
                     sleep(500);
