@@ -202,6 +202,7 @@ async function tradeCycle() {
             handleMessage(
               `[${tradeCycleCount}] Fatal error. Unable to recover from incomplete arbitrage. Exiting.`, 'fatal',
             );
+            console.error(error);
             await sleep(500);
             process.exit(1);
           }
