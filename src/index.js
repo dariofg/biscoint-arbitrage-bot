@@ -159,8 +159,7 @@ async function tradeCycle() {
                 `[${tradeCycleCount}] Only the first leg of the arbitrage was executed. ` +
                 'Trying to execute it at a possible loss.',
               );
-              let i = 0;
-              for (i = 0; i < 10; i++)
+              for (let i = 0; i < 10; i++)
               {
                 try {
                   secondLeg = await bc.offer({
@@ -182,10 +181,11 @@ async function tradeCycle() {
                     handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
 
                     checkBalances();
-                    
+
                     break;
-                  } else
+                  } else {
                     await sleep(500);
+                  }
                 } catch (error) {
                   console.error(error);
                   await sleep(500);
@@ -193,7 +193,8 @@ async function tradeCycle() {
               }
               if (i == 10) {
                 //throw new Error("Failed after 10 tries.");
-
+                handleMessage(
+                  `[${tradeCycleCount}] Failed 10 times trying to execute second leg. Switching to single currency mode.`);
                 checkBalances();
               }
             }
