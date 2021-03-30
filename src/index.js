@@ -87,7 +87,7 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
+    //handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     startedAt = Date.now();
 
@@ -99,10 +99,10 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
+    //handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     const profit = percent(buyOffer.efPrice, sellOffer.efPrice);
-    handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
+    //handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
     if (
       profit >= minProfitPercent
     ) {
