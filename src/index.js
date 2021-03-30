@@ -63,6 +63,11 @@ async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
 
+  if (isQuote && amountBRL < 100)
+    isQuote = false;
+  elseif (!isQuote && amountBTC < 0.001)
+    isQuote = true;
+
   let amount = isQuote ? amountBRL : amountBTC;
 
   tradeCycleCount += 1;
@@ -187,7 +192,9 @@ async function tradeCycle() {
                 }
               }
               if (i == 10) {
-                throw new Error("Failed after 10 tries.");
+                //throw new Error("Failed after 10 tries.");
+
+                checkBalances();
               }
             }
           } catch (error) {
