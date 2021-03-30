@@ -65,7 +65,7 @@ async function tradeCycle() {
 
   if (isQuote && amountBRL < 100)
     isQuote = false;
-  elseif (!isQuote && amountBTC < 0.001)
+  else if (!isQuote && amountBTC < 0.001)
     isQuote = true;
 
   let amount = isQuote ? amountBRL : amountBTC;
