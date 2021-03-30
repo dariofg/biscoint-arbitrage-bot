@@ -159,7 +159,8 @@ async function tradeCycle() {
                 `[${tradeCycleCount}] Only the first leg of the arbitrage was executed. ` +
                 'Trying to execute it at a possible loss.',
               );
-              for (let i = 0; i < 10; i++)
+              let i;
+              for (i = 0; i < 10; i++)
               {
                 try {
                   secondLeg = await bc.offer({
@@ -194,7 +195,7 @@ async function tradeCycle() {
               if (i == 10) {
                 //throw new Error("Failed after 10 tries.");
                 handleMessage(
-                  `[${tradeCycleCount}] Failed 10 times trying to execute second leg. Switching to single currency mode.`);
+                  `[${tradeCycleCount}] Failed trying to execute second leg after 10 tries. Switching to single currency mode.`);
                 checkBalances();
               }
             }
