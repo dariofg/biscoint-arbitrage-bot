@@ -154,7 +154,8 @@ async function tradeCycle() {
                 `[${tradeCycleCount}] Only the first leg of the arbitrage was executed. ` +
                 'Trying to execute it at a possible loss.',
               );
-              for (let i = 0; i < 10; i++)
+              let i = 0;
+              for (i = 0; i < 10; i++)
               {
                 try {
                   secondLeg = await bc.offer({
