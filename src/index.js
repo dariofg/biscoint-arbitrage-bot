@@ -5,12 +5,12 @@ import config from './config.js';
 
 // read the configurations
 let {
-  apiKey, apiSecret, amount, amountCurrency, initialBuy, minProfitPercent, intervalSeconds, playSound, simulation,
+  apiKey, apiSecret, minProfitPercent, intervalSeconds, playSound, simulation,
   executeMissedSecondLeg,
 } = config;
 
 // global variables
-let bc, lastTrade = 0, isQuote, balances;
+let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
 // Initializes the Biscoint API connector object.
 const init = () => {
@@ -21,16 +21,7 @@ const init = () => {
     handleMessage('You must specify "apiSecret" in config.json', 'error', true);
   }
 
-  amountCurrency = _.toUpper(amountCurrency);
-  if (!['BRL', 'BTC'].includes(amountCurrency)) {
-    handleMessage('"amountCurrency" must be either "BRL" or "BTC". Check your config.json file.', 'error', true);
-  }
-
-  if (isNaN(amount)) {
-    handleMessage(`Invalid amount "${amount}. Please specify a valid amount in config.json`, 'error', true);
-  }
-
-  isQuote = amountCurrency === 'BRL';
+  isQuote = true;
 
   bc = new Biscoint({
     apiKey: config.apiKey,
@@ -43,17 +34,11 @@ const checkBalances = async () => {
   balances = await bc.balance();
   const { BRL, BTC } = balances;
 
-  handleMessage(`Balances:  BRL: ${BRL} - BTC: ${BTC} `);
+  amountBRL = BRL;
+  amountBTC = BTC;
 
-  const nAmount = Number(amount);
-  let amountBalance = isQuote ? BRL : BTC;
-  if (nAmount > Number(amountBalance)) {
-    handleMessage(
-      `Amount ${amount} is greater than the user's ${isQuote ? 'BRL' : 'BTC'} balance of ${amountBalance}`,
-      'error',
-      true,
-    );
-  }
+  handleMessage(`Balances:  BRL: ${amountBRL} - BTC: ${amountBTC} `);
+
 };
 
 // Checks that the configured interval is within the allowed rate limit.
@@ -78,10 +63,12 @@ async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
 
+  let amount = isQuote ? amountBRL : amountBTC; 
+
   tradeCycleCount += 1;
   const tradeCycleStartedAt = Date.now();
 
-  handleMessage(`[${tradeCycleCount}] Trade cycle started...`);
+  handleMessage(`[${tradeCycleCount}] Trade cycle started ${isQuote ? 'BRL' : 'BTC'} (${amount})...`);
 
   try {
 
@@ -116,7 +103,7 @@ async function tradeCycle() {
     ) {
       let firstOffer, secondOffer, firstLeg, secondLeg;
       try {
-        if (initialBuy) {
+        if (isQuote) {
           firstOffer = buyOffer;
           secondOffer = sellOffer;
         } else {
@@ -152,7 +139,7 @@ async function tradeCycle() {
           // probably only one leg of the arbitrage got executed, we have to accept loss and rebalance funds.
           try {
             // first we ensure the leg was not actually executed
-            let secondOp = initialBuy ? 'sell' : 'buy';
+            let secondOp = isQuote ? 'sell' : 'buy';
             const trades = await bc.trades({ op: secondOp });
             if (_.find(trades, t => t.offerId === secondOffer.offerId)) {
               handleMessage(`[${tradeCycleCount}] The second leg was executed despite of the error. Good!`);
@@ -198,6 +185,8 @@ async function tradeCycle() {
   // handleMessage(`[${cycleCount}] Cycle took ${tradeCycleElapsedMs} ms`);
 
   // handleMessage(`[${cycleCount}] New cycle in ${shouldWaitMs} ms...`);
+
+  isQuote = !isQuote;
 
   setTimeout(tradeCycle, shouldWaitMs);
 }
