@@ -12,6 +12,8 @@ let {
 // global variables
 let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
+let falhaBTC = false, falhaBRL = false, ultimoPrecoCompra = 0, ultimoPrecoVenda = 0;
+
 // Initializes the Biscoint API connector object.
 const init = () => {
   if (!apiKey) {
@@ -63,10 +65,14 @@ async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
 
-  if (isQuote && amountBRL < 100)
+  if (isQuote && amountBRL < 100 && !falhaBRL)
     isQuote = false;
-  else if (!isQuote && amountBTC < 0.0004)
+  else if (!isQuote && amountBTC < 0.0004 && !falhaBTC)
     isQuote = true;
+  else if (falhaBRL && falhaBTC) {
+    falhaBRL = false;
+    falhaBTC = false;
+  }
 
   let amount = isQuote ? amountBRL : amountBTC;
 
@@ -79,11 +85,15 @@ async function tradeCycle() {
 
     startedAt = Date.now();
 
-    const buyOffer = await bc.offer({
-      amount,
-      isQuote,
-      op: 'buy',
-    });
+    let buyOffer = null;
+
+    if (!(isQuote && falhaBRL)) { //se é ciclo BRL e não houve falha anterior
+      buyOffer = await bc.offer({
+        amount,
+        isQuote,
+        op: 'buy',
+      });
+    }
 
     finishedAt = Date.now();
 
@@ -91,20 +101,51 @@ async function tradeCycle() {
 
     startedAt = Date.now();
 
-    const sellOffer = await bc.offer({
-      amount,
-      isQuote,
-      op: 'sell',
-    });
+    let sellOffer = null;
+
+    if (!(!isQuote && falhaBTC)) { //se é ciclo BTC e não houve falha anterior
+      sellOffer = await bc.offer({
+        amount,
+        isQuote,
+        op: 'sell',
+      });
+    }
 
     finishedAt = Date.now();
 
     //handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
+    let executar = false;
 
-    const profit = percent(buyOffer.efPrice, sellOffer.efPrice);
+    let precoCompra = 0;
+    let precoVenda = 0;
+
+    if (isQuote) {
+      if (falhaBRL)
+        precoCompra = ultimoPrecoCompra;
+      else
+        precoCompra = buyOffer.efPrice
+
+      precoVenda= sellOffer.efPrice;
+    } else {
+      if (falhaBTC)
+        precoVenda = ultimoPrecoVenda;
+      else
+        precoVenda = sellOffer.efPrice;
+
+      precoCompra = buyOffer.efPrice
+    }
+
+    const profit = percent(precoCompra, precoVenda);
+
+    if ((isQuote && falhaBRL) || (!isQuote && falhaBTC))
+      executar = (profit >= -minProfitPercent);
+    else
+      executar = (profit >= minProfitPercent);
+
+
     //handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
     if (
-      profit >= minProfitPercent
+      executar
     ) {
       let firstOffer, secondOffer, firstLeg, secondLeg;
       try {
@@ -121,9 +162,11 @@ async function tradeCycle() {
         if (simulation) {
           handleMessage(`[${tradeCycleCount}] Would execute arbitrage if simulation mode was not enabled`);
         } else {
-          firstLeg = await bc.confirmOffer({
-            offerId: firstOffer.offerId,
-          });
+          if (!(isQuote && falhaBRL) && !(!isQuote && falhaBTC)) { //se não houve falha no ciclo corrente
+            firstLeg = await bc.confirmOffer({
+              offerId: firstOffer.offerId,
+            });
+          }
 
           secondLeg = await bc.confirmOffer({
             offerId: secondOffer.offerId,
@@ -137,6 +180,13 @@ async function tradeCycle() {
         handleMessage(`[${tradeCycleCount}] Success, profit: + ${profit.toFixed(3)}% (${finishedAt - startedAt} ms)`);
         play();
         checkBalances();
+
+        //se estava num ciclo com falha, zere o flag
+        if (isQuote && falhaBRL)
+          falhaBRL = false;
+        else if (!isQuote && falhaBTC)
+          falhaBTC = false;
+
       } catch (error) {
         handleMessage(`[${tradeCycleCount}] Error on confirm offer: ${error.error}`, 'error');
         console.error(error);
@@ -169,8 +219,8 @@ async function tradeCycle() {
                     op: secondOp,
                   });
 
-                  let precoCompra = isQuote ? buyOffer.efPrice : secondLeg.efPrice;
-                  let precoVenda = isQuote ? secondLeg.efPrice : sellOffer.efPrice;
+                  precoCompra = isQuote ? buyOffer.efPrice : secondLeg.efPrice;
+                  precoVenda = isQuote ? secondLeg.efPrice : sellOffer.efPrice;
 
                   let lucro = profit(precoCompra, precoVenda);
 
@@ -196,7 +246,14 @@ async function tradeCycle() {
                 //throw new Error("Failed after 10 tries.");
                 handleMessage(
                   `[${tradeCycleCount}] Failed trying to execute second leg after 10 tries. Switching to single currency mode.`);
-                checkBalances();
+                //checkBalances();
+                if (isQuote) {
+                  falhaBRL = true;
+                  ultimoPrecoCompra = buyOffer.efPrice;
+                } else {
+                  falhaBTC = true;
+                  ultimoPrecoVenda = sellOffer.efPrice;
+                }
               }
             }
           } catch (error) {
