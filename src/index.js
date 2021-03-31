@@ -72,6 +72,8 @@ async function tradeCycle() {
   else if (falhaBRL && falhaBTC) {
     falhaBRL = false;
     falhaBTC = false;
+
+    checkBalances();
   }
 
   let amount = isQuote ? amountBRL : amountBTC;
