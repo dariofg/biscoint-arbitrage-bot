@@ -65,7 +65,7 @@ async function tradeCycle() {
 
   if (isQuote && amountBRL < 100)
     isQuote = false;
-  else if (!isQuote && amountBTC < 0.001)
+  else if (!isQuote && amountBTC < 0.0004)
     isQuote = true;
 
   let amount = isQuote ? amountBRL : amountBTC;
@@ -73,7 +73,7 @@ async function tradeCycle() {
   tradeCycleCount += 1;
   const tradeCycleStartedAt = Date.now();
 
-  handleMessage(`[${tradeCycleCount}] Trade cycle started ${isQuote ? 'BRL' : 'BTC'} (${amount})...`);
+  //handleMessage(`[${tradeCycleCount}] Trade cycle started ${isQuote ? 'BRL' : 'BTC'} (${amount})...`);
 
   try {
 
