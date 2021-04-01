@@ -289,6 +289,7 @@ async function tradeCycle() {
                   falhaBTC = true;
                   ultimoPreco = sellOffer.efPrice;
                 }
+                ultimaQuantidade = amount;
                 saveFile();
               }
             }
