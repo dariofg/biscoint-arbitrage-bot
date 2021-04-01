@@ -60,6 +60,20 @@ const checkInterval = async () => {
 
 let tradeCycleCount = 0;
 
+const fs = require('fs');
+
+try {
+  let rawdata = fs.readFileSync('./data.json');
+  let dados = JSON.parse(rawdata);
+
+  falhaBRL = dados.falhaBRL;
+  ultimoPrecoCompra = dados.ultimoPrecoCompra;
+  falhaBTC = dados.falhaBTC;
+  ultimoPrecoVenda = dados.ultimoPrecoVenda;
+} catch(error){
+  console.log(error);
+}
+
 // Executes an arbitrage cycle
 async function tradeCycle() {
   let startedAt = 0;
@@ -72,6 +86,8 @@ async function tradeCycle() {
   else if (falhaBRL && falhaBTC) {
     falhaBRL = false;
     falhaBTC = false;
+
+    deleteFile();
 
     checkBalances();
   }
@@ -184,10 +200,15 @@ async function tradeCycle() {
         checkBalances();
 
         //se estava num ciclo com falha, zere o flag
-        if (isQuote && falhaBRL)
+        if (isQuote && falhaBRL) {
           falhaBRL = false;
-        else if (!isQuote && falhaBTC)
+
+          deleteFile();
+        } else if (!isQuote && falhaBTC) {
           falhaBTC = false;
+
+          deleteFile();
+        }
 
       } catch (error) {
         handleMessage(`[${tradeCycleCount}] Error on confirm offer: ${error.error}`, 'error');
@@ -256,6 +277,7 @@ async function tradeCycle() {
                   falhaBTC = true;
                   ultimoPrecoVenda = sellOffer.efPrice;
                 }
+                saveFile();
               }
             }
           } catch (error) {
@@ -309,6 +331,32 @@ function handleMessage(message, level = 'info', throwError = false) {
     throw new Error(message);
   }
 }
+
+function deleteFile() {
+  try {
+    fs.unlinkSync('./data.json')
+  } catch(err) {
+    console.error(err)
+  }
+}
+
+function saveFile() {
+
+  let dados = { 
+      falhaBRL: falhaBRL,
+      ultimoPrecoCompra: ultimoPrecoCompra,
+      falhaBTC: falhaBTC,
+      ultimoPrecoVenda: ultimoPrecoVenda
+  };
+  
+  let data = JSON.stringify(dados);
+  try {
+    fs.writeFileSync('./data.json', data);
+  } catch(error) {
+    console.log(error);
+  }
+}
+
 
 const sound = playSound && player();
 
