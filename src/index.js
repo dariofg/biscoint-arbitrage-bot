@@ -12,7 +12,7 @@ let {
 // global variables
 let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
-let falhaBTC = false, falhaBRL = false, ultimoPrecoCompra = 0, ultimoPrecoVenda = 0;
+let falhaBTC = false, falhaBRL = false, ultimoPreco = 0, ultimaQuantidade = 0;
 
 // Initializes the Biscoint API connector object.
 const init = () => {
@@ -67,9 +67,9 @@ try {
   let dados = JSON.parse(rawdata);
 
   falhaBRL = dados.falhaBRL;
-  ultimoPrecoCompra = dados.ultimoPrecoCompra;
   falhaBTC = dados.falhaBTC;
-  ultimoPrecoVenda = dados.ultimoPrecoVenda;
+  ultimoPreco = dados.ultimoPreco;
+  ultimaQuantidade = dados.ultimaQuantidade;
 } catch(error){
   console.log(error);
 }
@@ -92,7 +92,19 @@ async function tradeCycle() {
     checkBalances();
   }
 
-  let amount = isQuote ? amountBRL : amountBTC;
+  let amount = 0;
+  
+  if (isQuote) {
+    if (falhaBRL)
+      amount = ultimaQuantidade;
+    else
+      amount = amountBRL;
+  } else {
+    if (falhaBTC)
+      amount = ultimaQuantidade;
+    else
+      amount = amountBTC;
+  }
 
   tradeCycleCount += 1;
   const tradeCycleStartedAt = Date.now();
@@ -139,14 +151,14 @@ async function tradeCycle() {
 
     if (isQuote) {
       if (falhaBRL)
-        precoCompra = ultimoPrecoCompra;
+        precoCompra = ultimoPreco;
       else
         precoCompra = buyOffer.efPrice
 
       precoVenda= sellOffer.efPrice;
     } else {
       if (falhaBTC)
-        precoVenda = ultimoPrecoVenda;
+        precoVenda = ultimoPreco;
       else
         precoVenda = sellOffer.efPrice;
 
@@ -272,10 +284,10 @@ async function tradeCycle() {
                 //checkBalances();
                 if (isQuote) {
                   falhaBRL = true;
-                  ultimoPrecoCompra = buyOffer.efPrice;
+                  ultimoPreco = buyOffer.efPrice;
                 } else {
                   falhaBTC = true;
-                  ultimoPrecoVenda = sellOffer.efPrice;
+                  ultimoPreco = sellOffer.efPrice;
                 }
                 saveFile();
               }
@@ -344,9 +356,9 @@ function saveFile() {
 
   let dados = { 
       falhaBRL: falhaBRL,
-      ultimoPrecoCompra: ultimoPrecoCompra,
       falhaBTC: falhaBTC,
-      ultimoPrecoVenda: ultimoPrecoVenda
+      ultimoPreco: ultimoPreco,
+      ultimaQuantidade: ultimaQuantidade
   };
   
   let data = JSON.stringify(dados);
