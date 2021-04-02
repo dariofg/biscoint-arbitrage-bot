@@ -33,14 +33,23 @@ const init = () => {
 
 // Checks that the balance necessary for the first operation is sufficient for the configured 'amount'.
 const checkBalances = async () => {
-  balances = await bc.balance();
-  const { BRL, BTC } = balances;
+  let continuar = true;
 
-  amountBRL = BRL;
-  amountBTC = BTC;
+  while (continuar) {
+    try {
+      balances = await bc.balance();
+      const { BRL, BTC } = balances;
 
-  handleMessage(`Balances:  BRL: ${amountBRL} - BTC: ${amountBTC} `);
+      amountBRL = BRL;
+      amountBTC = BTC;
 
+      handleMessage(`Balances:  BRL: ${amountBRL} - BTC: ${amountBTC} `);
+
+      continuar = false;
+    } catch (error) {
+      console.log(error);
+    }
+  }
 };
 
 // Checks that the configured interval is within the allowed rate limit.
@@ -89,7 +98,7 @@ async function tradeCycle() {
 
     deleteFile();
 
-    checkBalances();
+    await checkBalances();
   }
 
   let amount = 0;
@@ -208,8 +217,14 @@ async function tradeCycle() {
         lastTrade = Date.now();
 
         handleMessage(`[${tradeCycleCount}] Success, profit: + ${profit.toFixed(3)}% (${finishedAt - startedAt} ms)`);
+
+        let lucroAbs = isQuote ? secondLeg.baseAmount - firstLeg.baseAmount : firstLeg.quoteAmount - secondLeg.quoteAmount;
+
+        handleMessage(`[${tradeCycleCount}] ${lucroAbs} ${isQuote ? 'BTC' : 'BRL'}`);
+
+
         play();
-        checkBalances();
+        await checkBalances();
 
         //se estava num ciclo com falha, zere o flag
         if (isQuote && falhaBRL) {
@@ -266,7 +281,7 @@ async function tradeCycle() {
                     });
                     handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
 
-                    checkBalances();
+                    await checkBalances();
 
                     break;
                   } else {
