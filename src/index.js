@@ -82,6 +82,7 @@ if (fs.existsSync('./data.json')) {
     falhaBTC = dados.falhaBTC;
     ultimoPreco = dados.ultimoPreco;
     ultimaQuantidade = dados.ultimaQuantidade;
+    outraQuantidade = dados.outraQuantidade;
   } catch (error) {
     console.log(error);
   }
