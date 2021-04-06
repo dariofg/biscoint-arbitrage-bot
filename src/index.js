@@ -73,17 +73,18 @@ let tradeCycleCount = 0;
 
 const fs = require('fs');
 
-try {
-  let rawdata = fs.readFileSync('./data.json');
-  let dados = JSON.parse(rawdata);
+if (fs.existsSync('./data.json')) {
+  try {
+    let rawdata = fs.readFileSync('./data.json');
+    let dados = JSON.parse(rawdata);
 
-  falhaBRL = dados.falhaBRL;
-  falhaBTC = dados.falhaBTC;
-  ultimoPreco = dados.ultimoPreco;
-  ultimaQuantidade = dados.ultimaQuantidade;
-  outraQuantidade = dados.outraQuantidade;
-} catch(error){
-  console.log(error);
+    falhaBRL = dados.falhaBRL;
+    falhaBTC = dados.falhaBTC;
+    ultimoPreco = dados.ultimoPreco;
+    ultimaQuantidade = dados.ultimaQuantidade;
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 // Executes an arbitrage cycle
