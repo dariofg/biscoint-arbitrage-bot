@@ -12,7 +12,9 @@ let {
 // global variables
 let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
-let falhaBTC = false, falhaBRL = false, ultimoPreco = 0, ultimaQuantidade = 0;
+let falhaBTC = false, falhaBRL = false, ultimoPreco = 0, ultimaQuantidade = 0, outraQuantidade = 0;
+
+let tevePrejuizo = false;
 
 // Initializes the Biscoint API connector object.
 const init = () => {
@@ -79,6 +81,7 @@ try {
   falhaBTC = dados.falhaBTC;
   ultimoPreco = dados.ultimoPreco;
   ultimaQuantidade = dados.ultimaQuantidade;
+  outraQuantidade = dados.outraQuantidade;
 } catch(error){
   console.log(error);
 }
@@ -177,10 +180,13 @@ async function tradeCycle() {
     const profit = percent(precoCompra, precoVenda);
 
     if ((isQuote && falhaBRL) || (!isQuote && falhaBTC))
-      executar = (profit >= -minProfitPercent);
+      executar = ((!tevePrejuizo && profit >= -minProfitPercent) || 
+        (tevePrejuizo && profit >= 0));
     else
       executar = (profit >= minProfitPercent);
 
+    if (!executar && tevePrejuizo && profit >= -minProfitPercent)
+      handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
 
     //handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
     if (
@@ -218,10 +224,35 @@ async function tradeCycle() {
 
         handleMessage(`[${tradeCycleCount}] Success, profit: + ${profit.toFixed(3)}% (${finishedAt - startedAt} ms)`);
 
-        let lucroAbs = isQuote ? secondLeg.baseAmount - firstLeg.baseAmount : firstLeg.quoteAmount - secondLeg.quoteAmount;
+        let q1 = 0, q2 = 0, decimalPlaces = 0;
 
-        handleMessage(`[${tradeCycleCount}] ${lucroAbs} ${isQuote ? 'BTC' : 'BRL'}`);
+        if (isQuote) {
+          if (falhaBRL)
+            q1 = outraQuantidade;
+          else
+            q1 = firstLeg.baseAmount;
 
+          q2 = secondLeg.baseAmount;
+          decimalPlaces = 8;
+        } else {
+          if (falhaBTC)
+            q1 = outraQuantidade;
+          else
+            q1 = firstLeg.quoteAmount;
+
+          q2 = secondLeg.quoteAmount;
+          decimalPlaces = 2;
+        }
+
+
+        let lucroAbs = q1 - q2;
+
+        handleMessage(`[${tradeCycleCount}] ${lucroAbs.toFixed(decimalPlaces)} ${isQuote ? 'BTC' : 'BRL'}`);
+
+        if (profit < 0)
+          tevePrejuizo = true;
+        else if (tevePrejuizo)
+          tevePrejuizo = false;
 
         play();
         await checkBalances();
@@ -274,17 +305,28 @@ async function tradeCycle() {
 
                   let lucro = profit(precoCompra, precoVenda);
 
-                  if (lucro >= -minProfitPercent) {
+                  if ((!tevePrejuizo && lucro >= -minProfitPercent) || 
+                    (tevePrejuizo && lucro >= 0)) {
 
                     await bc.confirmOffer({
                       offerId: secondLeg.offerId,
                     });
                     handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
 
+
+                    if (lucro < 0)
+                      tevePrejuizo = true;
+                    else if (tevePrejuizo)
+                      tevePrejuizo = false;
+
                     await checkBalances();
 
                     break;
                   } else {
+
+                    if (tevePrejuizo && lucro >= -minProfitPercent)
+                      handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss(2)`);
+
                     await sleep(500);
                   }
                 } catch (error) {
@@ -300,9 +342,11 @@ async function tradeCycle() {
                 if (isQuote) {
                   falhaBRL = true;
                   ultimoPreco = buyOffer.efPrice;
+                  outraQuantidade = buyOffer.baseAmount;
                 } else {
                   falhaBTC = true;
                   ultimoPreco = sellOffer.efPrice;
+                  outraQuantidade = sellOffer.quoteAmount;
                 }
                 ultimaQuantidade = amount;
                 saveFile();
@@ -374,7 +418,8 @@ function saveFile() {
       falhaBRL: falhaBRL,
       falhaBTC: falhaBTC,
       ultimoPreco: ultimoPreco,
-      ultimaQuantidade: ultimaQuantidade
+      ultimaQuantidade: ultimaQuantidade,
+      outraQuantidade: outraQuantidade,
   };
   
   let data = JSON.stringify(dados);
