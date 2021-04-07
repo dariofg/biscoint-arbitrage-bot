@@ -305,7 +305,7 @@ async function tradeCycle() {
                   precoCompra = isQuote ? buyOffer.efPrice : secondLeg.efPrice;
                   precoVenda = isQuote ? secondLeg.efPrice : sellOffer.efPrice;
 
-                  let lucro = profit(precoCompra, precoVenda);
+                  let lucro = percent(precoCompra, precoVenda);
 
                   if ((!tevePrejuizo && lucro >= -minProfitPercent) || 
                     (tevePrejuizo && lucro >= 0)) {
