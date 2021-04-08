@@ -279,7 +279,17 @@ async function tradeCycle() {
           try {
             // first we ensure the leg was not actually executed
             let secondOp = isQuote ? 'sell' : 'buy';
-            const trades = await bc.trades({ op: secondOp });
+            let trades = null;
+            let continuar = true;
+            while (continuar) {
+              try {
+                trades = await bc.trades({ op: secondOp });
+                continuar = false;
+              } catch(error) {
+                console.log(error);
+              }
+            }
+            
             if (_.find(trades, t => t.offerId === secondOffer.offerId)) {
               handleMessage(`[${tradeCycleCount}] The second leg was executed despite of the error. Good!`);
             } else if (!executeMissedSecondLeg) {
