@@ -246,10 +246,11 @@ async function tradeCycle() {
           decimalPlaces = 2;
         }
 
-
         let lucroAbs = q1 - q2;
 
-        handleMessage(`[${tradeCycleCount}] ${lucroAbs.toFixed(decimalPlaces)} ${isQuote ? 'BTC' : 'BRL'}`);
+        //handleMessage(`[${tradeCycleCount}] ${lucroAbs.toFixed(decimalPlaces)} ${isQuote ? 'BTC' : 'BRL'}`);
+
+        logProfit(lucroAbs.toFixed(decimalPlaces));
 
         if (profit < 0)
           tevePrejuizo = true;
@@ -320,10 +321,27 @@ async function tradeCycle() {
                   if ((!tevePrejuizo && lucro >= -minProfitPercent) || 
                     (tevePrejuizo && lucro >= 0)) {
 
-                    await bc.confirmOffer({
+                    secondLeg = await bc.confirmOffer({
                       offerId: secondLeg.offerId,
                     });
                     handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
+
+
+
+                    let q1 = 0, q2 = 0, decimalPlaces = 0;
+
+                    if (isQuote) {
+                      q1 = firstLeg.baseAmount;
+                      q2 = secondLeg.baseAmount;
+                      decimalPlaces = 8;
+                    } else {
+                      q1 = firstLeg.quoteAmount;
+                      q2 = secondLeg.quoteAmount;
+                      decimalPlaces = 2;
+                    }
+
+                    let lucroAbs = q1 - q2;
+                    logProfit(lucroAbs.toFixed(decimalPlaces));
 
 
                     if (lucro < 0)
@@ -437,6 +455,16 @@ function saveFile() {
   let data = JSON.stringify(dados);
   try {
     fs.writeFileSync('./data.json', data);
+  } catch(error) {
+    console.log(error);
+  }
+}
+
+function logProfit(lucroAbs) {
+  let linha = `[${tradeCycleCount}],${new Date().toISOString()},${isQuote ? 'BTC' : 'BRL'},${lucroAbs}\n`;
+
+  try {
+    fs.writeFileSync('./lucro.txt', linha, {flag: 'a'});
   } catch(error) {
     console.log(error);
   }
