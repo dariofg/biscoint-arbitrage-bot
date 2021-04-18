@@ -9,6 +9,15 @@ let {
   executeMissedSecondLeg,
 } = config;
 
+//read CLI arguments
+
+let myArgs = process.argv.slice(2);
+
+let verbose = false;
+
+if (myArgs.length == 1 && myArgs[0] == 'verbose')
+  verbose = true;
+
 // global variables
 let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
@@ -83,6 +92,8 @@ if (fs.existsSync('./data.json')) {
     ultimoPreco = dados.ultimoPreco;
     ultimaQuantidade = dados.ultimaQuantidade;
     outraQuantidade = dados.outraQuantidade;
+
+    handleMessage(`Data file read successfully`);
   } catch (error) {
     console.log(error);
   }
@@ -123,7 +134,8 @@ async function tradeCycle() {
   tradeCycleCount += 1;
   const tradeCycleStartedAt = Date.now();
 
-  //handleMessage(`[${tradeCycleCount}] Trade cycle started ${isQuote ? 'BRL' : 'BTC'} (${amount})...`);
+  if (verbose)
+    handleMessage(`[${tradeCycleCount}] Trade cycle started ${isQuote ? 'BRL' : 'BTC'} (${amount})...`);
 
   try {
 
@@ -141,7 +153,8 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    //handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
+    if (verbose)
+      handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     startedAt = Date.now();
 
@@ -157,8 +170,10 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    //handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
-    let executar = false;
+    if (verbose)
+      handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
+    
+      let executar = false;
 
     let precoCompra = 0;
     let precoVenda = 0;
@@ -187,10 +202,12 @@ async function tradeCycle() {
     else
       executar = (profit >= minProfitPercent);
 
-    if (!executar && tevePrejuizo && profit >= -minProfitPercent)
+    if (!executar && tevePrejuizo && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
 
-    //handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
+    if (verbose)
+      handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
+
     if (
       executar
     ) {
@@ -326,8 +343,6 @@ async function tradeCycle() {
                     });
                     handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
 
-
-
                     let q1 = 0, q2 = 0, decimalPlaces = 0;
 
                     if (isQuote) {
@@ -343,7 +358,6 @@ async function tradeCycle() {
                     let lucroAbs = q1 - q2;
                     logProfit(lucroAbs.toFixed(decimalPlaces));
 
-
                     if (lucro < 0)
                       tevePrejuizo = true;
                     else if (tevePrejuizo)
@@ -354,7 +368,7 @@ async function tradeCycle() {
                     break;
                   } else {
 
-                    if (tevePrejuizo && lucro >= -minProfitPercent)
+                    if (tevePrejuizo && lucro < 0)
                       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss(2)`);
 
                     await sleep(500);
@@ -368,15 +382,17 @@ async function tradeCycle() {
                 //throw new Error("Failed after 10 tries.");
                 handleMessage(
                   `[${tradeCycleCount}] Failed trying to execute second leg after 10 tries. Switching to single currency mode.`);
-                //checkBalances();
+                checkBalances();
                 if (isQuote) {
                   falhaBRL = true;
                   ultimoPreco = buyOffer.efPrice;
                   outraQuantidade = buyOffer.baseAmount;
+                  falhaBTC = false;
                 } else {
                   falhaBTC = true;
                   ultimoPreco = sellOffer.efPrice;
                   outraQuantidade = sellOffer.quoteAmount;
+                  falhaBRL = false;
                 }
                 ultimaQuantidade = amount;
                 saveFile();
