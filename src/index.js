@@ -21,7 +21,9 @@ if (myArgs.length == 1 && myArgs[0] == 'verbose')
 // global variables
 let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
-let falhaBTC = false, falhaBRL = false, ultimoPreco = 0, ultimaQuantidade = 0, outraQuantidade = 0;
+let falhaBTC = false, falhaBRL = false, 
+  ultimoPrecoBRL = 0, ultimaQuantidadeBRL = 0, outraQuantidadeBRL = 0, 
+  ultimoPrecoBTC = 0, ultimaQuantidadeBTC = 0, outraQuantidadeBTC = 0;
 
 let tevePrejuizo = false;
 
@@ -87,11 +89,14 @@ if (fs.existsSync('./data.json')) {
     let rawdata = fs.readFileSync('./data.json');
     let dados = JSON.parse(rawdata);
 
-    falhaBRL = dados.falhaBRL;
-    falhaBTC = dados.falhaBTC;
-    ultimoPreco = dados.ultimoPreco;
-    ultimaQuantidade = dados.ultimaQuantidade;
-    outraQuantidade = dados.outraQuantidade;
+    falhaBRL = dados.falhaBRL ? dados.falhaBRL : false;
+    falhaBTC = dados.falhaBTC ? dados.falhaBTC : false;
+    ultimoPrecoBRL = dados.ultimoPrecoBRL ? dados.ultimoPrecoBRL : 0;
+    ultimaQuantidadeBRL = dados.ultimaQuantidadeBRL ? dados.ultimaQuantidadeBRL : 0;
+    outraQuantidadeBRL = dados.outraQuantidadeBRL ? dados.outraQuantidadeBRL : 0;
+    ultimoPrecoBTC = dados.ultimoPrecoBTC ? dados.ultimoPrecoBTC : 0;
+    ultimaQuantidadeBTC = dados.ultimaQuantidadeBTC ? dados.ultimaQuantidadeBTC : 0;
+    outraQuantidadeBTC = dados.outraQuantidadeBTC ? dados.outraQuantidadeBTC : 0;
 
     handleMessage(`Data file read successfully`);
   } catch (error) {
@@ -109,24 +114,22 @@ async function tradeCycle() {
   else if (!isQuote && amountBTC < 0.0004 && !falhaBTC)
     isQuote = true;
   else if (falhaBRL && falhaBTC) {
-    falhaBRL = false;
-    falhaBTC = false;
-
-    deleteFile();
-
-    await checkBalances();
+    if (amountBRL < 100)
+      isQuote = true;
+    else
+      isQuote = false;
   }
 
   let amount = 0;
   
   if (isQuote) {
     if (falhaBRL)
-      amount = ultimaQuantidade;
+      amount = ultimaQuantidadeBRL;
     else
       amount = amountBRL;
   } else {
     if (falhaBTC)
-      amount = ultimaQuantidade;
+      amount = ultimaQuantidadeBTC;
     else
       amount = amountBTC;
   }
@@ -153,7 +156,7 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    if (verbose)
+    if (verbose && buyOffer)
       handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     startedAt = Date.now();
@@ -170,7 +173,7 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    if (verbose)
+    if (verbose && sellOffer)
       handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
     
       let executar = false;
@@ -180,14 +183,14 @@ async function tradeCycle() {
 
     if (isQuote) {
       if (falhaBRL)
-        precoCompra = ultimoPreco;
+        precoCompra = ultimoPrecoBRL;
       else
         precoCompra = buyOffer.efPrice
 
       precoVenda= sellOffer.efPrice;
     } else {
       if (falhaBTC)
-        precoVenda = ultimoPreco;
+        precoVenda = ultimoPrecoBTC;
       else
         precoVenda = sellOffer.efPrice;
 
@@ -247,7 +250,7 @@ async function tradeCycle() {
 
         if (isQuote) {
           if (falhaBRL)
-            q1 = outraQuantidade;
+            q1 = outraQuantidadeBRL;
           else
             q1 = firstLeg.baseAmount;
 
@@ -255,7 +258,7 @@ async function tradeCycle() {
           decimalPlaces = 8;
         } else {
           if (falhaBTC)
-            q1 = outraQuantidade;
+            q1 = outraQuantidadeBTC;
           else
             q1 = firstLeg.quoteAmount;
 
@@ -281,11 +284,17 @@ async function tradeCycle() {
         if (isQuote && falhaBRL) {
           falhaBRL = false;
 
-          deleteFile();
+          if (falhaBTC)
+            saveFile();
+          else
+            deleteFile();
         } else if (!isQuote && falhaBTC) {
           falhaBTC = false;
 
-          deleteFile();
+          if (falhaBRL)
+            saveFile();
+          else
+            deleteFile();
         }
 
       } catch (error) {
@@ -310,6 +319,8 @@ async function tradeCycle() {
             
             if (_.find(trades, t => t.offerId === secondOffer.offerId)) {
               handleMessage(`[${tradeCycleCount}] The second leg was executed despite of the error. Good!`);
+            
+              await checkBalances();
             } else if (!executeMissedSecondLeg) {
               handleMessage(
                 `[${tradeCycleCount}] Only the first leg of the arbitrage was executed, and the ` +
@@ -382,19 +393,19 @@ async function tradeCycle() {
                 //throw new Error("Failed after 10 tries.");
                 handleMessage(
                   `[${tradeCycleCount}] Failed trying to execute second leg after 10 tries. Switching to single currency mode.`);
-                checkBalances();
+                await checkBalances();
                 if (isQuote) {
                   falhaBRL = true;
-                  ultimoPreco = buyOffer.efPrice;
-                  outraQuantidade = buyOffer.baseAmount;
-                  falhaBTC = false;
+                  ultimoPrecoBRL = buyOffer.efPrice;
+                  outraQuantidadeBRL = buyOffer.baseAmount;
+                  ultimaQuantidadeBRL = amount;
                 } else {
                   falhaBTC = true;
-                  ultimoPreco = sellOffer.efPrice;
-                  outraQuantidade = sellOffer.quoteAmount;
-                  falhaBRL = false;
+                  ultimoPrecoBTC = sellOffer.efPrice;
+                  outraQuantidadeBTC = sellOffer.quoteAmount;
+                  ultimaQuantidadeBTC = amount;
                 }
-                ultimaQuantidade = amount;
+                
                 saveFile();
               }
             }
@@ -452,7 +463,8 @@ function handleMessage(message, level = 'info', throwError = false) {
 
 function deleteFile() {
   try {
-    fs.unlinkSync('./data.json')
+    if (fs.existsSync('./data.json'))
+      fs.unlinkSync('./data.json')
   } catch(err) {
     console.error(err)
   }
@@ -463,9 +475,12 @@ function saveFile() {
   let dados = { 
       falhaBRL: falhaBRL,
       falhaBTC: falhaBTC,
-      ultimoPreco: ultimoPreco,
-      ultimaQuantidade: ultimaQuantidade,
-      outraQuantidade: outraQuantidade,
+      ultimoPrecoBRL: ultimoPrecoBRL,
+      ultimaQuantidadeBRL: ultimaQuantidadeBRL,
+      outraQuantidadeBRL: outraQuantidadeBRL,
+      ultimoPrecoBTC: ultimoPrecoBTC,
+      ultimaQuantidadeBTC: ultimaQuantidadeBTC,
+      outraQuantidadeBTC: outraQuantidadeBTC,
   };
   
   let data = JSON.stringify(dados);
