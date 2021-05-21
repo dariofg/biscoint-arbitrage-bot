@@ -101,11 +101,10 @@ async function tradeCycle() {
 
   try {
 
-    startedAt = Date.now();
-
     let buyOffer = null;
+    let sellOffer = null;
 
-    if (!(isQuote && falhaBRL)) { //se é ciclo BRL e não houve falha anterior
+    if (!isQuote || !falhaBRL) { //se é ciclo BRL e não houve falha anterior
       buyOffer = await bc.offer({
         amount,
         isQuote,
@@ -113,15 +112,8 @@ async function tradeCycle() {
       });
     }
 
-    finishedAt = Date.now();
 
-    //handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
-
-    startedAt = Date.now();
-
-    let sellOffer = null;
-
-    if (!(!isQuote && falhaBTC)) { //se é ciclo BTC e não houve falha anterior
+    if (isQuote || !falhaBTC)) { //se é ciclo BTC e não houve falha anterior
       sellOffer = await bc.offer({
         amount,
         isQuote,
@@ -130,6 +122,19 @@ async function tradeCycle() {
     }
 
     finishedAt = Date.now();
+
+    let [buyOffer, sellOffer] = await Promise.all([
+        bc.offer({
+            amount,
+            isQuote,
+            op: 'buy',
+        }),
+        bc.offer({
+            amount,
+            isQuote,
+            op: 'sell',
+        })
+    ]);
 
     //handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
     let executar = false;
@@ -342,13 +347,13 @@ function deleteFile() {
 
 function saveFile() {
 
-  let dados = { 
+  let dados = {
       falhaBRL: falhaBRL,
       ultimoPrecoCompra: ultimoPrecoCompra,
       falhaBTC: falhaBTC,
       ultimoPrecoVenda: ultimoPrecoVenda
   };
-  
+
   let data = JSON.stringify(dados);
   try {
     fs.writeFileSync('./data.json', data);
