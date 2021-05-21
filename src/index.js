@@ -97,6 +97,7 @@ if (fs.existsSync('./data.json')) {
     ultimoPrecoBTC = dados.ultimoPrecoBTC ? dados.ultimoPrecoBTC : 0;
     ultimaQuantidadeBTC = dados.ultimaQuantidadeBTC ? dados.ultimaQuantidadeBTC : 0;
     outraQuantidadeBTC = dados.outraQuantidadeBTC ? dados.outraQuantidadeBTC : 0;
+    tevePrejuizo = dados.tevePrejuizo ? dados.tevePrejuizo : false;
 
     handleMessage(`Data file read successfully`);
   } catch (error) {
@@ -205,7 +206,7 @@ async function tradeCycle() {
     else
       executar = (profit >= minProfitPercent);
 
-    if (!executar && tevePrejuizo && profit < 0)
+    if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
 
     if (verbose)
@@ -352,7 +353,7 @@ async function tradeCycle() {
                     secondLeg = await bc.confirmOffer({
                       offerId: secondLeg.offerId,
                     });
-                    handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized`);
+                    handleMessage(`[${tradeCycleCount}] The second leg was executed and the balance was normalized, profit: + ${lucro.toFixed(3)}%`);
 
                     let q1 = 0, q2 = 0, decimalPlaces = 0;
 
@@ -379,7 +380,7 @@ async function tradeCycle() {
                     break;
                   } else {
 
-                    if (tevePrejuizo && lucro < 0)
+                    if (tevePrejuizo && lucro >= -minProfitPercent && lucro < 0)
                       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss(2)`);
 
                     await sleep(500);
@@ -481,6 +482,7 @@ function saveFile() {
       ultimoPrecoBTC: ultimoPrecoBTC,
       ultimaQuantidadeBTC: ultimaQuantidadeBTC,
       outraQuantidadeBTC: outraQuantidadeBTC,
+      tevePrejuizo: tevePrejuizo
   };
   
   let data = JSON.stringify(dados);
