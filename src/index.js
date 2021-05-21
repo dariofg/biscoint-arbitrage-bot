@@ -104,26 +104,10 @@ async function tradeCycle() {
     let buyOffer = null;
     let sellOffer = null;
 
-    if (!isQuote || !falhaBRL) { //se é ciclo BRL e não houve falha anterior
-      buyOffer = await bc.offer({
-        amount,
-        isQuote,
-        op: 'buy',
-      });
-    }
-
-
-    if (isQuote || !falhaBTC)) { //se é ciclo BTC e não houve falha anterior
-      sellOffer = await bc.offer({
-        amount,
-        isQuote,
-        op: 'sell',
-      });
-    }
-
-    finishedAt = Date.now();
-
-    let [buyOffer, sellOffer] = await Promise.all([
+    if ((!isQuote || !falhaBRL) && (isQuote || !falhaBTC))
+    {
+      // executa ambos em paralelo
+      [buyOffer, sellOffer] = await Promise.all([
         bc.offer({
             amount,
             isQuote,
@@ -134,11 +118,29 @@ async function tradeCycle() {
             isQuote,
             op: 'sell',
         })
-    ]);
+      ]);
+    }
+    else
+    {
+      if (!isQuote || !falhaBRL) { //se é ciclo BRL e não houve falha anterior
+        buyOffer = await bc.offer({
+          amount,
+          isQuote,
+          op: 'buy',
+        });
+      }
+
+      if (isQuote || !falhaBTC) { //se é ciclo BTC e não houve falha anterior
+        sellOffer = await bc.offer({
+          amount,
+          isQuote,
+          op: 'sell',
+        });
+      }
+    }
 
     //handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
     let executar = false;
-
     let precoCompra = 0;
     let precoVenda = 0;
 

@@ -14,6 +14,8 @@ const config = {
   playSound: false,
   simulation: false,
   executeMissedSecondLeg: true,
+  maxAmountBRL: null,
+  maxAmountBTC: null,
 };
 
 try {
