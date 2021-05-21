@@ -59,6 +59,7 @@ const checkInterval = async () => {
 };
 
 let tradeCycleCount = 0;
+let verbose = true;
 
 const fs = require('fs');
 
@@ -107,6 +108,8 @@ async function tradeCycle() {
     if ((!isQuote || !falhaBRL) && (isQuote || !falhaBTC))
     {
       // executa ambos em paralelo
+      startedAt = Date.now();
+
       [buyOffer, sellOffer] = await Promise.all([
         bc.offer({
             amount,
@@ -119,9 +122,16 @@ async function tradeCycle() {
             op: 'sell',
         })
       ]);
+
+      finishedAt = Date.now();
+
+      if (verbose && buyOffer && sellOffer)
+        handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} / sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
     }
     else
     {
+      startedAt = Date.now();
+
       if (!isQuote || !falhaBRL) { //se é ciclo BRL e não houve falha anterior
         buyOffer = await bc.offer({
           amount,
@@ -130,6 +140,13 @@ async function tradeCycle() {
         });
       }
 
+      finishedAt = Date.now();
+
+      if (verbose && buyOffer)
+        handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
+
+      startedAt = Date.now();
+
       if (isQuote || !falhaBTC) { //se é ciclo BTC e não houve falha anterior
         sellOffer = await bc.offer({
           amount,
@@ -137,6 +154,11 @@ async function tradeCycle() {
           op: 'sell',
         });
       }
+
+      finishedAt = Date.now();
+
+      if (verbose && sellOffer)
+        handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
     }
 
     //handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
