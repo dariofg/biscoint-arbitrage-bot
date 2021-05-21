@@ -6,7 +6,7 @@ import config from './config.js';
 // read the configurations
 let {
   apiKey, apiSecret, minProfitPercent, intervalSeconds, playSound, simulation,
-  executeMissedSecondLeg,
+  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC
 } = config;
 
 //read CLI arguments
@@ -21,8 +21,8 @@ if (myArgs.length == 1 && myArgs[0] == 'verbose')
 // global variables
 let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
-let falhaBTC = false, falhaBRL = false, 
-  ultimoPrecoBRL = 0, ultimaQuantidadeBRL = 0, outraQuantidadeBRL = 0, 
+let falhaBTC = false, falhaBRL = false,
+  ultimoPrecoBRL = 0, ultimaQuantidadeBRL = 0, outraQuantidadeBRL = 0,
   ultimoPrecoBTC = 0, ultimaQuantidadeBTC = 0, outraQuantidadeBTC = 0;
 
 let tevePrejuizo = false;
@@ -46,9 +46,7 @@ const init = () => {
 
 // Checks that the balance necessary for the first operation is sufficient for the configured 'amount'.
 const checkBalances = async () => {
-  let continuar = true;
-
-  while (continuar) {
+  while (true) {
     try {
       balances = await bc.balance();
       const { BRL, BTC } = balances;
@@ -58,7 +56,19 @@ const checkBalances = async () => {
 
       handleMessage(`Balances:  BRL: ${amountBRL} - BTC: ${amountBTC} `);
 
-      continuar = false;
+      if (maxAmountBRL !== null)
+      {
+        amountBRL = Math.min(amountBRL, maxAmountBRL);
+        handleMessage(`BRL limited to: ${amountBRL}`);
+      }
+      if (maxAmountBTC !== null)
+      {
+        amountBTC = Math.min(amountBTC, maxAmountBTC);
+        handleMessage(`BTC limited to: ${amountBTC}`);
+      }
+
+      break;
+
     } catch (error) {
       console.log(error);
     }
@@ -122,7 +132,7 @@ async function tradeCycle() {
   }
 
   let amount = 0;
-  
+
   if (isQuote) {
     if (falhaBRL)
       amount = ultimaQuantidadeBRL;
@@ -176,7 +186,7 @@ async function tradeCycle() {
 
     if (verbose && sellOffer)
       handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
-    
+
       let executar = false;
 
     let precoCompra = 0;
@@ -201,7 +211,7 @@ async function tradeCycle() {
     const profit = percent(precoCompra, precoVenda);
 
     if ((isQuote && falhaBRL) || (!isQuote && falhaBTC))
-      executar = ((!tevePrejuizo && profit >= -minProfitPercent) || 
+      executar = ((!tevePrejuizo && profit >= -minProfitPercent) ||
         (tevePrejuizo && profit >= 0));
     else
       executar = (profit >= minProfitPercent);
@@ -317,10 +327,10 @@ async function tradeCycle() {
                 console.log(error);
               }
             }
-            
+
             if (_.find(trades, t => t.offerId === secondOffer.offerId)) {
               handleMessage(`[${tradeCycleCount}] The second leg was executed despite of the error. Good!`);
-            
+
               await checkBalances();
             } else if (!executeMissedSecondLeg) {
               handleMessage(
@@ -347,7 +357,7 @@ async function tradeCycle() {
 
                   let lucro = percent(precoCompra, precoVenda);
 
-                  if ((!tevePrejuizo && lucro >= -minProfitPercent) || 
+                  if ((!tevePrejuizo && lucro >= -minProfitPercent) ||
                     (tevePrejuizo && lucro >= 0)) {
 
                     secondLeg = await bc.confirmOffer({
@@ -406,7 +416,7 @@ async function tradeCycle() {
                   outraQuantidadeBTC = sellOffer.quoteAmount;
                   ultimaQuantidadeBTC = amount;
                 }
-                
+
                 saveFile();
               }
             }
@@ -473,7 +483,7 @@ function deleteFile() {
 
 function saveFile() {
 
-  let dados = { 
+  let dados = {
       falhaBRL: falhaBRL,
       falhaBTC: falhaBTC,
       ultimoPrecoBRL: ultimoPrecoBRL,
@@ -484,7 +494,7 @@ function saveFile() {
       outraQuantidadeBTC: outraQuantidadeBTC,
       tevePrejuizo: tevePrejuizo
   };
-  
+
   let data = JSON.stringify(dados);
   try {
     fs.writeFileSync('./data.json', data);
