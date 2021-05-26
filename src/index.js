@@ -23,8 +23,8 @@ let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
 
 let ciclosBRL = 0, ciclosBTC = 0;
 
-let falhaBTC = false, falhaBRL = false, 
-  ultimoPrecoBRL = 0, ultimaQuantidadeBRL = 0, outraQuantidadeBRL = 0, 
+let falhaBTC = false, falhaBRL = false,
+  ultimoPrecoBRL = 0, ultimaQuantidadeBRL = 0, outraQuantidadeBRL = 0,
   ultimoPrecoBTC = 0, ultimaQuantidadeBTC = 0, outraQuantidadeBTC = 0;
 
 let tevePrejuizo = false;
@@ -69,7 +69,7 @@ const checkBalances = async () => {
 
 
 function calcula_mdc(x, y) {
-  if ((typeof x !== 'number') || (typeof y !== 'number')) 
+  if ((typeof x !== 'number') || (typeof y !== 'number'))
     return false;
   x = Math.abs(x);
   y = Math.abs(y);
@@ -92,10 +92,10 @@ function atualizaProporcoes(ultimoPrecoBTC) {
 
   ciclosBTC = Math.round(totalBTC * fator);
 
-  if (ciclosBTC == 0)
+  if (ciclosBTC <= 0)
     ciclosBTC = 1;
-  
-  if (ciclosBRL == 0)
+
+  if (ciclosBRL <= 0)
     ciclosBRL = 1;
 
   if (ciclosBRL > 1 && ciclosBRL > 1)
@@ -130,6 +130,7 @@ const checkInterval = async () => {
 };
 
 let tradeCycleCount = 0;
+let numRequests = 0;
 
 const fs = require('fs');
 
@@ -171,7 +172,7 @@ async function tradeCycle() {
   }
 
   let amount = 0;
-  
+
   if (isQuote) {
     if (falhaBRL)
       amount = ultimaQuantidadeBRL;
@@ -184,7 +185,7 @@ async function tradeCycle() {
       amount = amountBTC;
   }
 
-  tradeCycleCount += 1;
+  tradeCycleCount++;
   const tradeCycleStartedAt = Date.now();
 
   if (verbose)
@@ -203,6 +204,7 @@ async function tradeCycle() {
         op: 'buy',
       });
     }
+	numRequests++;
 
     finishedAt = Date.now();
 
@@ -219,8 +221,9 @@ async function tradeCycle() {
         isQuote,
         op: 'sell',
       });
+	  numRequests++;
 
-      if ((isQuote && ciclosBRL == 0 && !falhaBRL) || (!isQuote && ciclosBTC == 0))
+      if ((isQuote && ciclosBRL <= 0 && !falhaBRL) || (!isQuote && ciclosBTC <= 0))
         atualizaProporcoes(sellOffer.efPrice);
     }
 
@@ -228,9 +231,11 @@ async function tradeCycle() {
 
     if (verbose && sellOffer)
       handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
-    
-      let executar = false;
 
+	if (verbose)
+	  handleMessage(`[${tradeCycleCount}] Number of buy/sell requests so far: ${numRequests}`);
+
+    let executar = false;
     let precoCompra = 0;
     let precoVenda = 0;
 
@@ -253,7 +258,7 @@ async function tradeCycle() {
     const profit = percent(precoCompra, precoVenda);
 
     if ((isQuote && falhaBRL) || (!isQuote && falhaBTC))
-      executar = ((!tevePrejuizo && profit >= -minProfitPercent) || 
+      executar = ((!tevePrejuizo && profit >= -minProfitPercent) ||
         (tevePrejuizo && profit >= 0));
     else
       executar = (profit >= minProfitPercent);
@@ -369,10 +374,10 @@ async function tradeCycle() {
                 console.log(error);
               }
             }
-            
+
             if (_.find(trades, t => t.offerId === secondOffer.offerId)) {
               handleMessage(`[${tradeCycleCount}] The second leg was executed despite of the error. Good!`);
-            
+
               await checkBalances();
             } else if (!executeMissedSecondLeg) {
               handleMessage(
@@ -399,7 +404,7 @@ async function tradeCycle() {
 
                   let lucro = percent(precoCompra, precoVenda);
 
-                  if ((!tevePrejuizo && lucro >= -minProfitPercent) || 
+                  if ((!tevePrejuizo && lucro >= -minProfitPercent) ||
                     (tevePrejuizo && lucro >= 0)) {
 
                     secondLeg = await bc.confirmOffer({
@@ -461,7 +466,7 @@ async function tradeCycle() {
                   outraQuantidadeBTC = sellOffer.quoteAmount;
                   ultimaQuantidadeBTC = amount;
                 }
-                
+
                 saveFile();
               }
             }
@@ -491,7 +496,7 @@ async function tradeCycle() {
 
     handleMessage(`[${cycleCount}] New cycle in ${shouldWaitMs} ms...`);
   }
-  
+
   if (falhaBTC || falhaBRL)
     isQuote = !isQuote;
   else {
@@ -499,16 +504,16 @@ async function tradeCycle() {
     {
       ciclosBRL = ciclosBRL - 1;
 
-      if (ciclosBRL == 0)
+      if (ciclosBRL <= 0)
         isQuote = false
     } else
     {
       ciclosBTC = ciclosBTC - 1;
-      if (ciclosBTC == 0)
+      if (ciclosBTC <= 0)
         isQuote = true;
     }
 
-    
+
   }
 
   setTimeout(tradeCycle, shouldWaitMs);
@@ -548,7 +553,7 @@ function deleteFile() {
 
 function saveFile() {
 
-  let dados = { 
+  let dados = {
       falhaBRL: falhaBRL,
       falhaBTC: falhaBTC,
       ultimoPrecoBRL: ultimoPrecoBRL,
@@ -559,7 +564,7 @@ function saveFile() {
       outraQuantidadeBTC: outraQuantidadeBTC,
       tevePrejuizo: tevePrejuizo
   };
-  
+
   let data = JSON.stringify(dados);
   try {
     fs.writeFileSync('./data.json', data);
