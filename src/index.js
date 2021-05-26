@@ -199,13 +199,13 @@ async function tradeCycle() {
     let buyOffer = null;
 
     if (!(isQuote && falhaBRL)) { //se é ciclo BRL e não houve falha anterior
+      numRequests++;
       buyOffer = await bc.offer({
         amount,
         isQuote,
         op: 'buy',
       });
     }
-    numRequests++;
 
     finishedAt = Date.now();
 
@@ -217,12 +217,12 @@ async function tradeCycle() {
     let sellOffer = null;
 
     if (!(!isQuote && falhaBTC)) { //se é ciclo BTC e não houve falha anterior
+      numRequests++;
       sellOffer = await bc.offer({
         amount,
         isQuote,
         op: 'sell',
       });
-      numRequests++;
 
       if ((isQuote && ciclosBRL <= 0 && !falhaBRL) || (!isQuote && ciclosBTC <= 0))
         atualizaProporcoes(sellOffer.efPrice);
@@ -234,7 +234,7 @@ async function tradeCycle() {
       handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     if (verbose) {
-      const avgRequestMin = numRequests / (Date.now() - scriptStart) / 1000 / 60;
+      const avgRequestMin = numRequests * 1000 * 60 / (Date.now() - scriptStart);
       handleMessage(`[${tradeCycleCount}] Avg requests per minute: ${avgRequestMin.toFixed(1)}`);
     }
 
