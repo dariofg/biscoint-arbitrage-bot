@@ -131,6 +131,7 @@ const checkInterval = async () => {
 
 let tradeCycleCount = 0;
 let numRequests = 0;
+const scriptStart = Date.now();
 
 const fs = require('fs');
 
@@ -204,7 +205,7 @@ async function tradeCycle() {
         op: 'buy',
       });
     }
-	numRequests++;
+    numRequests++;
 
     finishedAt = Date.now();
 
@@ -221,7 +222,7 @@ async function tradeCycle() {
         isQuote,
         op: 'sell',
       });
-	  numRequests++;
+      numRequests++;
 
       if ((isQuote && ciclosBRL <= 0 && !falhaBRL) || (!isQuote && ciclosBTC <= 0))
         atualizaProporcoes(sellOffer.efPrice);
@@ -232,8 +233,10 @@ async function tradeCycle() {
     if (verbose && sellOffer)
       handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
-	if (verbose)
-	  handleMessage(`[${tradeCycleCount}] Number of buy/sell requests so far: ${numRequests}`);
+    if (verbose) {
+      const avgRequestMin = numRequests / (Date.now() - scriptStart) / 1000 / 60;
+      handleMessage(`[${tradeCycleCount}] Avg requests per minute: ${avgRequestMin.toFixed(1)}`);
+    }
 
     let executar = false;
     let precoCompra = 0;
