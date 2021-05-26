@@ -485,10 +485,13 @@ async function tradeCycle() {
   const tradeCycleElapsedMs = parseFloat(tradeCycleFinishedAt - tradeCycleStartedAt);
   const shouldWaitMs = Math.max(Math.ceil((intervalSeconds * 1000.0) - tradeCycleElapsedMs), 0);
 
-  // handleMessage(`[${cycleCount}] Cycle took ${tradeCycleElapsedMs} ms`);
+  if (verbose)
+  {
+    handleMessage(`[${cycleCount}] Cycle took ${tradeCycleElapsedMs} ms`);
 
-  // handleMessage(`[${cycleCount}] New cycle in ${shouldWaitMs} ms...`);
-
+    handleMessage(`[${cycleCount}] New cycle in ${shouldWaitMs} ms...`);
+  }
+  
   if (falhaBTC || falhaBRL)
     isQuote = !isQuote;
   else {
