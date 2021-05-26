@@ -487,11 +487,11 @@ async function tradeCycle() {
 
   if (verbose)
   {
-    handleMessage(`[${cycleCount}] Cycle took ${tradeCycleElapsedMs} ms`);
+    handleMessage(`[${tradeCycleCount}] Cycle took ${tradeCycleElapsedMs} ms`);
 
-    handleMessage(`[${cycleCount}] New cycle in ${shouldWaitMs} ms...`);
+    handleMessage(`[${tradeCycleCount}] New cycle in ${shouldWaitMs} ms...`);
   }
-  
+
   if (falhaBTC || falhaBRL)
     isQuote = !isQuote;
   else {
