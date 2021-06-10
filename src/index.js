@@ -6,7 +6,7 @@ import config from './config.js';
 // read the configurations
 let {
   apiKey, apiSecret, minProfitPercent, intervalSeconds, playSound, simulation,
-  executeMissedSecondLeg,
+  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC, proportionalCycles
 } = config;
 
 //read CLI arguments
@@ -58,6 +58,11 @@ const checkBalances = async () => {
       amountBRL = BRL;
       amountBTC = BTC;
 
+	  if (maxAmountBRL !== null)
+		amountBRL = Math.min(amountBRL, maxAmountBRL);
+	  if (maxAmountBTC !== null)
+		amountBTC = Math.min(amountBTC, maxAmountBTC);
+
       handleMessage(`Balances:  BRL: ${amountBRL} - BTC: ${amountBTC} `);
 
       continuar = false;
@@ -83,34 +88,38 @@ function calcula_mdc(x, y) {
 
 
 function atualizaProporcoes(ultimoPrecoBTC) {
-  let totalBTC = parseFloat(amountBTC) * parseFloat(ultimoPrecoBTC);
-  let total = parseFloat(amountBRL) + totalBTC;
+  if (proportionalCycles) {
+    let totalBTC = parseFloat(amountBTC) * parseFloat(ultimoPrecoBTC);
+    let total = parseFloat(amountBRL) + totalBTC;
 
-  let fator = 10 / total;
+    let fator = 10 / total;
 
-  ciclosBRL = Math.round(amountBRL * fator);
+    ciclosBRL = Math.round(amountBRL * fator);
 
-  ciclosBTC = Math.round(totalBTC * fator);
+    ciclosBTC = Math.round(totalBTC * fator);
 
-  if (ciclosBTC <= 0)
-    ciclosBTC = 1;
+    if (ciclosBTC <= 0)
+      ciclosBTC = 1;
 
-  if (ciclosBRL <= 0)
-    ciclosBRL = 1;
+    if (ciclosBRL <= 0)
+      ciclosBRL = 1;
 
-  if (ciclosBRL > 1 && ciclosBRL > 1)
-  {
-    let mdc = calcula_mdc(ciclosBRL, ciclosBTC);
-
-    if (mdc > 1)
+    if (ciclosBRL > 1 && ciclosBRL > 1)
     {
-      ciclosBRL = ciclosBRL / mdc;
-      ciclosBTC = ciclosBTC / mdc;
-    }
-  }
+      let mdc = calcula_mdc(ciclosBRL, ciclosBTC);
 
-  if (verbose)
-    handleMessage(`CiclosBRL: ${ciclosBRL} | CiclosBTC: ${ciclosBTC}`);
+      if (mdc > 1)
+      {
+        ciclosBRL = ciclosBRL / mdc;
+        ciclosBTC = ciclosBTC / mdc;
+      }
+    }
+
+    if (verbose)
+      handleMessage(`CiclosBRL: ${ciclosBRL} | CiclosBTC: ${ciclosBTC}`);
+  }
+  else
+    ciclosBRL = ciclosBTC = 1;
 }
 
 
