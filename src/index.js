@@ -19,9 +19,9 @@ if (myArgs.length == 1 && myArgs[0] == 'verbose')
   verbose = true;
 
 // global variables
-let bc, lastTrade = 0, isQuote, balances, amountBRL, amountBTC;
+let bc, lastTrade = 0, ehCicloBRL, balances, amountBRL, amountBTC;
 
-let ciclosBRL = 0, ciclosBTC = 0;
+let numCiclosBRL = 0, numCiclosBTC = 0;
 
 let falhaBTC = false, falhaBRL = false,
   ultimoPrecoBRL = 0, ultimaQuantidadeBRL = 0, outraQuantidadeBRL = 0,
@@ -38,7 +38,7 @@ const init = () => {
     handleMessage('You must specify "apiSecret" in config.json', 'error', true);
   }
 
-  isQuote = true;
+  ehCicloBRL = true;
 
   bc = new Biscoint({
     apiKey: config.apiKey,
@@ -94,32 +94,32 @@ function atualizaProporcoes(ultimoPrecoBTC) {
 
     let fator = 10 / total;
 
-    ciclosBRL = Math.round(amountBRL * fator);
+    numCiclosBRL = Math.round(amountBRL * fator);
 
-    ciclosBTC = Math.round(totalBTC * fator);
+    numCiclosBTC = Math.round(totalBTC * fator);
 
-    if (ciclosBTC <= 0)
-      ciclosBTC = 1;
+    if (numCiclosBTC <= 0)
+      numCiclosBTC = 1;
 
-    if (ciclosBRL <= 0)
-      ciclosBRL = 1;
+    if (numCiclosBRL <= 0)
+      numCiclosBRL = 1;
 
-    if (ciclosBRL > 1 && ciclosBRL > 1)
+    if (numCiclosBRL > 1 && numCiclosBRL > 1)
     {
-      let mdc = calcula_mdc(ciclosBRL, ciclosBTC);
+      let mdc = calcula_mdc(numCiclosBRL, numCiclosBTC);
 
       if (mdc > 1)
       {
-        ciclosBRL = ciclosBRL / mdc;
-        ciclosBTC = ciclosBTC / mdc;
+        numCiclosBRL = numCiclosBRL / mdc;
+        numCiclosBTC = numCiclosBTC / mdc;
       }
     }
 
     if (verbose)
-      handleMessage(`CiclosBRL: ${ciclosBRL} | CiclosBTC: ${ciclosBTC}`);
+      handleMessage(`numCiclosBRL: ${numCiclosBRL} | CiclosBTC: ${numCiclosBTC}`);
   }
   else
-    ciclosBRL = ciclosBTC = 1;
+    numCiclosBRL = numCiclosBTC = 1;
 }
 
 
@@ -168,36 +168,26 @@ async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
 
-  if (isQuote && amountBRL < 100 && !falhaBRL)
-    isQuote = false;
-  else if (!isQuote && amountBTC < 0.0004 && !falhaBTC)
-    isQuote = true;
-  else if (falhaBRL && falhaBTC) {
-    if (amountBRL < 100)
-      isQuote = true;
-    else
-      isQuote = false;
-  }
+  if (ehCicloBRL && amountBRL < 100 && !falhaBRL)
+    ehCicloBRL = false;
+  else if (!ehCicloBRL && amountBTC < 0.0004 && !falhaBTC)
+    ehCicloBRL = true;
+  else if (falhaBRL && falhaBTC)
+    ehCicloBRL = amountBRL < 100;
 
   let amount = 0;
 
-  if (isQuote) {
-    if (falhaBRL)
-      amount = ultimaQuantidadeBRL;
-    else
-      amount = amountBRL;
+  if (ehCicloBRL) {
+    amount = falhaBRL ? ultimaQuantidadeBRL : amountBRL;
   } else {
-    if (falhaBTC)
-      amount = ultimaQuantidadeBTC;
-    else
-      amount = amountBTC;
+    amount = falhaBTC ? ultimaQuantidadeBTC : amountBTC;
   }
 
   tradeCycleCount++;
   const tradeCycleStartedAt = Date.now();
 
   if (verbose)
-    handleMessage(`[${tradeCycleCount}] Trade cycle started ${isQuote ? 'BRL' : 'BTC'} (${amount})...`);
+    handleMessage(`[${tradeCycleCount}] Trade cycle started ${ehCicloBRL ? 'BRL' : 'BTC'} (${amount})...`);
 
   try {
 
@@ -205,10 +195,10 @@ async function tradeCycle() {
 
     let buyOffer = null;
 
-    if (!(isQuote && falhaBRL)) { //se é ciclo BRL e não houve falha anterior
+    if (!ehCicloBRL || !falhaBRL) { //se é ciclo BRL e não houve falha anterior
       buyOffer = await bc.offer({
         amount,
-        isQuote,
+        ehCicloBRL,
         op: 'buy',
       });
     }
@@ -222,14 +212,14 @@ async function tradeCycle() {
 
     let sellOffer = null;
 
-    if (!(!isQuote && falhaBTC)) { //se é ciclo BTC e não houve falha anterior
+    if (ehCicloBRL || !falhaBTC) { //se é ciclo BTC e não houve falha anterior
       sellOffer = await bc.offer({
         amount,
-        isQuote,
+        ehCicloBRL,
         op: 'sell',
       });
 
-      if ((isQuote && ciclosBRL <= 0 && !falhaBRL) || (!isQuote && ciclosBTC <= 0))
+      if ((ehCicloBRL && numCiclosBRL <= 0 && !falhaBRL) || (!ehCicloBRL && numCiclosBTC <= 0))
         atualizaProporcoes(sellOffer.efPrice);
     }
 
@@ -242,29 +232,21 @@ async function tradeCycle() {
     let precoCompra = 0;
     let precoVenda = 0;
 
-    if (isQuote) {
-      if (falhaBRL)
-        precoCompra = ultimoPrecoBRL;
-      else
-        precoCompra = buyOffer.efPrice
-
+    if (ehCicloBRL) {
+      precoCompra = falhaBRL ? ultimoPrecoBRL : buyOffer.efPrice
       precoVenda = sellOffer.efPrice;
     } else {
-      if (falhaBTC)
-        precoVenda = ultimoPrecoBTC;
-      else
-        precoVenda = sellOffer.efPrice;
-
+      precoVenda = falhaBTC ? ultimoPrecoBTC : sellOffer.efPrice;
       precoCompra = buyOffer.efPrice
     }
 
     const profit = percent(precoCompra, precoVenda);
 
-    if ((isQuote && falhaBRL) || (!isQuote && falhaBTC))
-      executar = ((!tevePrejuizo && profit >= -minProfitPercent) ||
-        (tevePrejuizo && profit >= 0));
+    if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
+      executar = (!tevePrejuizo && profit >= -minProfitPercent) ||
+        (tevePrejuizo && profit >= 0);
     else
-      executar = (profit >= minProfitPercent);
+      executar = profit >= minProfitPercent;
 
     if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
@@ -272,12 +254,10 @@ async function tradeCycle() {
     if (verbose)
       handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
 
-    if (
-      executar
-    ) {
+    if (executar) {
       let firstOffer, secondOffer, firstLeg, secondLeg;
       try {
-        if (isQuote) {
+        if (ehCicloBRL) {
           firstOffer = buyOffer;
           secondOffer = sellOffer;
         } else {
@@ -290,7 +270,7 @@ async function tradeCycle() {
         if (simulation) {
           handleMessage(`[${tradeCycleCount}] Would execute arbitrage if simulation mode was not enabled`);
         } else {
-          if (!(isQuote && falhaBRL) && !(!isQuote && falhaBTC)) { //se não houve falha no ciclo corrente
+          if (!(ehCicloBRL && falhaBRL) && !(!ehCicloBRL && falhaBTC)) { //se não houve falha no ciclo corrente
             firstLeg = await bc.confirmOffer({
               offerId: firstOffer.offerId,
             });
@@ -301,35 +281,25 @@ async function tradeCycle() {
           });
         }
 
-        finishedAt = Date.now();
-
-        lastTrade = Date.now();
+        finishedAt = lastTrade = Date.now();
 
         handleMessage(`[${tradeCycleCount}] Success, profit: + ${profit.toFixed(3)}% (${finishedAt - startedAt} ms)`);
 
         let q1 = 0, q2 = 0, decimalPlaces = 0;
 
-        if (isQuote) {
-          if (falhaBRL)
-            q1 = outraQuantidadeBRL;
-          else
-            q1 = firstLeg.baseAmount;
-
+        if (ehCicloBRL) {
+          q1 = falhaBRL ? outraQuantidadeBRL : firstLeg.baseAmount;
           q2 = secondLeg.baseAmount;
           decimalPlaces = 8;
         } else {
-          if (falhaBTC)
-            q1 = outraQuantidadeBTC;
-          else
-            q1 = firstLeg.quoteAmount;
-
+          q1 = falhaBTC ? outraQuantidadeBTC : firstLeg.quoteAmount;
           q2 = secondLeg.quoteAmount;
           decimalPlaces = 2;
         }
 
         let lucroAbs = q1 - q2;
 
-        //handleMessage(`[${tradeCycleCount}] ${lucroAbs.toFixed(decimalPlaces)} ${isQuote ? 'BTC' : 'BRL'}`);
+        //handleMessage(`[${tradeCycleCount}] ${lucroAbs.toFixed(decimalPlaces)} ${ehCicloBRL ? 'BTC' : 'BRL'}`);
 
         logProfit(lucroAbs.toFixed(decimalPlaces));
 
@@ -342,14 +312,14 @@ async function tradeCycle() {
         await checkBalances();
 
         //se estava num ciclo com falha, zere o flag
-        if (isQuote && falhaBRL) {
+        if (ehCicloBRL && falhaBRL) {
           falhaBRL = false;
 
           if (falhaBTC || tevePrejuizo)
             saveFile();
           else
             deleteFile();
-        } else if (!isQuote && falhaBTC) {
+        } else if (!ehCicloBRL && falhaBTC) {
           falhaBTC = false;
 
           if (falhaBRL || tevePrejuizo)
@@ -366,7 +336,7 @@ async function tradeCycle() {
           // probably only one leg of the arbitrage got executed, we have to accept loss and rebalance funds.
           try {
             // first we ensure the leg was not actually executed
-            let secondOp = isQuote ? 'sell' : 'buy';
+            let secondOp = ehCicloBRL ? 'sell' : 'buy';
             let trades = null;
             let continuar = true;
             while (continuar) {
@@ -398,12 +368,12 @@ async function tradeCycle() {
                 try {
                   secondLeg = await bc.offer({
                     amount,
-                    isQuote,
+                    ehCicloBRL,
                     op: secondOp,
                   });
 
-                  precoCompra = isQuote ? buyOffer.efPrice : secondLeg.efPrice;
-                  precoVenda = isQuote ? secondLeg.efPrice : sellOffer.efPrice;
+                  precoCompra = ehCicloBRL ? buyOffer.efPrice : secondLeg.efPrice;
+                  precoVenda = ehCicloBRL ? secondLeg.efPrice : sellOffer.efPrice;
 
                   let lucro = percent(precoCompra, precoVenda);
 
@@ -417,7 +387,7 @@ async function tradeCycle() {
 
                     let q1 = 0, q2 = 0, decimalPlaces = 0;
 
-                    if (isQuote) {
+                    if (ehCicloBRL) {
                       q1 = firstLeg.baseAmount;
                       q2 = secondLeg.baseAmount;
                       decimalPlaces = 8;
@@ -458,7 +428,7 @@ async function tradeCycle() {
                 handleMessage(
                   `[${tradeCycleCount}] Failed trying to execute second leg after 10 tries. Switching to single currency mode.`);
                 await checkBalances();
-                if (isQuote) {
+                if (ehCicloBRL) {
                   falhaBRL = true;
                   ultimoPrecoBRL = buyOffer.efPrice;
                   outraQuantidadeBRL = buyOffer.baseAmount;
@@ -501,19 +471,19 @@ async function tradeCycle() {
   }
 
   if (falhaBTC || falhaBRL)
-    isQuote = !isQuote;
+    ehCicloBRL = !ehCicloBRL;
   else {
-    if (isQuote)
+    if (ehCicloBRL)
     {
-      ciclosBRL = ciclosBRL - 1;
+      numCiclosBRL = numCiclosBRL - 1;
 
-      if (ciclosBRL <= 0)
-        isQuote = false
+      if (numCiclosBRL <= 0)
+        ehCicloBRL = false
     } else
     {
-      ciclosBTC = ciclosBTC - 1;
-      if (ciclosBTC <= 0)
-        isQuote = true;
+      numCiclosBTC = numCiclosBTC - 1;
+      if (numCiclosBTC <= 0)
+        ehCicloBRL = true;
     }
 
 
@@ -577,7 +547,7 @@ function saveFile() {
 }
 
 function logProfit(lucroAbs) {
-  let linha = `[${tradeCycleCount}],${new Date().toISOString()},${isQuote ? 'BTC' : 'BRL'},${lucroAbs}\n`;
+  let linha = `[${tradeCycleCount}],${new Date().toISOString()},${ehCicloBRL ? 'BTC' : 'BRL'},${lucroAbs}\n`;
 
   try {
     fs.writeFileSync('./lucro.txt', linha, {flag: 'a'});
