@@ -21,6 +21,8 @@ if (myArgs.length == 1 && myArgs[0] == 'verbose')
 // global variables
 let bc, lastTrade = 0, ehCicloBRL, balances, amountBRL, amountBTC;
 
+let numCiclosDebug = 53;
+
 let numCiclosBRL = 0, numCiclosBTC = 0;
 
 let falhaBTC = false, falhaBRL = false,
@@ -186,7 +188,12 @@ async function tradeCycle() {
   tradeCycleCount++;
   const tradeCycleStartedAt = Date.now();
 
-  if (verbose || (tradeCycleCount % 53 == 0))
+  let executar = false;
+  let precoCompra = 0;
+  let precoVenda = 0;
+  let profit = 0;
+
+  if (verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0))
     handleMessage(`[${tradeCycleCount}] Trade cycle started ${ehCicloBRL ? 'BRL' : 'BTC'} (${amount})...`);
 
   try {
@@ -205,7 +212,7 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    if ((verbose || (tradeCycleCount % 53 == 0)) && buyOffer)
+    if ((verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0)) && buyOffer)
       handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     startedAt = Date.now();
@@ -225,12 +232,10 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    if ((verbose || (tradeCycleCount % 53 == 0)) && sellOffer)
+    if ((verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0)) && sellOffer)
       handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
-    let executar = false;
-    let precoCompra = 0;
-    let precoVenda = 0;
+    
 
     if (ehCicloBRL) {
       precoCompra = falhaBRL ? ultimoPrecoBRL : buyOffer.efPrice
@@ -243,7 +248,7 @@ async function tradeCycle() {
     if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
       handleMessage(`[${tradeCycleCount}] PrecoCompra: ${precoCompra} PrecoVenda ${precoVenda}`);
 
-    const profit = percent(precoCompra, precoVenda);
+    profit = percent(precoCompra, precoVenda);
 
     if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
       executar = ((!tevePrejuizo && profit >= -minProfitPercent) ||
@@ -254,7 +259,7 @@ async function tradeCycle() {
     if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
 
-    if (verbose || (tradeCycleCount % 53 == 0))
+    if (verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0))
       handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
 
     if (executar) {
@@ -490,6 +495,24 @@ async function tradeCycle() {
     }
 
 
+  }
+
+  if ((tradeCycleCount - 1) % numCiclosDebug == 0)
+  {
+    console.log(`falhaBRL: ${falhaBRL}`);
+    console.log(`ultimoPrecoBRL: ${ultimoPrecoBRL}`);
+    console.log(`outraQuantidadeBRL: ${outraQuantidadeBRL}`);
+    console.log(`ultimaQuantidadeBRL: ${ultimaQuantidadeBRL}`);
+    console.log(`falhaBTC: ${falhaBTC}`);
+    console.log(`ultimoPrecoBTC: ${ultimoPrecoBTC}`);
+    console.log(`outraQuantidadeBTC: ${outraQuantidadeBTC}`);
+    console.log(`ultimaQuantidadeBTC: ${ultimaQuantidadeBTC}`);
+    console.log(`tevePrejuizo: ${tevePrejuizo}`);
+    console.log(`amount: ${amount}`);
+    console.log(`precoCompra: ${precoCompra}`);
+    console.log(`precoVenda: ${precoVenda}`);
+    console.log(`profit: ${profit}`);
+    console.log(`executar: ${executar}`);
   }
 
   setTimeout(tradeCycle, shouldWaitMs);
