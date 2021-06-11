@@ -195,7 +195,7 @@ async function tradeCycle() {
 
     let buyOffer = null;
 
-    if (!ehCicloBRL || !falhaBRL) { //se é ciclo BRL e não houve falha anterior
+    if (!ehCicloBRL || !falhaBRL) { //se é ciclo BTC ou não houve falha BRL anterior
       buyOffer = await bc.offer({
         amount,
         isQuote: ehCicloBRL,
@@ -212,7 +212,7 @@ async function tradeCycle() {
 
     let sellOffer = null;
 
-    if (ehCicloBRL || !falhaBTC) { //se é ciclo BTC e não houve falha anterior
+    if (ehCicloBRL || !falhaBTC) { //se é ciclo BRL ou não houve falha BTC anterior
       sellOffer = await bc.offer({
         amount,
         isQuote: ehCicloBRL,
