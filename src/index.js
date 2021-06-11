@@ -58,10 +58,10 @@ const checkBalances = async () => {
       amountBRL = BRL;
       amountBTC = BTC;
 
-	  if (maxAmountBRL !== null)
-		amountBRL = Math.min(amountBRL, maxAmountBRL);
-	  if (maxAmountBTC !== null)
-		amountBTC = Math.min(amountBTC, maxAmountBTC);
+      if (maxAmountBRL !== null)
+        amountBRL = Math.min(amountBRL, maxAmountBRL);
+      if (maxAmountBTC !== null)
+        amountBTC = Math.min(amountBTC, maxAmountBTC);
 
       handleMessage(`Balances:  BRL: ${amountBRL} - BTC: ${amountBTC} `);
 
@@ -87,9 +87,9 @@ function calcula_mdc(x, y) {
 }
 
 
-function atualizaProporcoes(ultimoPrecoBTC) {
+function atualizaProporcoes(ultimoPrecoVenda) {
   if (proportionalCycles) {
-    let totalBTC = parseFloat(amountBTC) * parseFloat(ultimoPrecoBTC);
+    let totalBTC = parseFloat(amountBTC) * parseFloat(ultimoPrecoVenda);
     let total = parseFloat(amountBRL) + totalBTC;
 
     let fator = 10 / total;
@@ -240,13 +240,16 @@ async function tradeCycle() {
       precoCompra = buyOffer.efPrice
     }
 
+    if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
+      handleMessage(`[${tradeCycleCount}] PrecoCompra: ${precoCompra} PrecoVenda ${precoVenda}`);
+
     const profit = percent(precoCompra, precoVenda);
 
     if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
-      executar = (!tevePrejuizo && profit >= -minProfitPercent) ||
-        (tevePrejuizo && profit >= 0);
+      executar = ((!tevePrejuizo && profit >= -minProfitPercent) ||
+        (tevePrejuizo && profit >= 0));
     else
-      executar = profit >= minProfitPercent;
+      executar = (profit >= minProfitPercent);
 
     if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
