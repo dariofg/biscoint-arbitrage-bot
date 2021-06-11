@@ -173,7 +173,7 @@ async function tradeCycle() {
   else if (!ehCicloBRL && amountBTC < 0.0004 && !falhaBTC)
     ehCicloBRL = true;
   else if (falhaBRL && falhaBTC)
-    ehCicloBRL = amountBRL < 100;
+    ehCicloBRL = (amountBRL < 100);
 
   let amount = 0;
 
@@ -186,7 +186,7 @@ async function tradeCycle() {
   tradeCycleCount++;
   const tradeCycleStartedAt = Date.now();
 
-  if (verbose)
+  if (verbose || (tradeCycleCount % 53 == 0))
     handleMessage(`[${tradeCycleCount}] Trade cycle started ${ehCicloBRL ? 'BRL' : 'BTC'} (${amount})...`);
 
   try {
@@ -205,7 +205,7 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    if (verbose && buyOffer)
+    if ((verbose || (tradeCycleCount % 53 == 0)) && buyOffer)
       handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     startedAt = Date.now();
@@ -225,7 +225,7 @@ async function tradeCycle() {
 
     finishedAt = Date.now();
 
-    if (verbose && sellOffer)
+    if ((verbose || (tradeCycleCount % 53 == 0)) && sellOffer)
       handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
 
     let executar = false;
@@ -254,7 +254,7 @@ async function tradeCycle() {
     if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
 
-    if (verbose)
+    if (verbose || (tradeCycleCount % 53 == 0))
       handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
 
     if (executar) {
