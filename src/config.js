@@ -16,6 +16,7 @@ const config = {
   executeMissedSecondLeg: true,
   maxAmountBRL: null,
   maxAmountBTC: null,
+  proportionalCycles: true,
 };
 
 try {
