@@ -21,7 +21,10 @@ if (myArgs.length == 1 && myArgs[0] == 'verbose')
 // global variables
 let bc, lastTrade = 0, ehCicloBRL, balances, amountBRL, amountBTC;
 
-let numCiclosDebug = 53;
+const numCiclosDebug = 53;
+const minutosCicloPosSucesso = 4; // minutos a permanecer no ciclo atual após um sucesso
+
+let numCiclosPosSucesso = minutosCicloPosSucesso * 60 / 4; // vai ajustar o "4" mais tarde
 
 let numCiclosBRL = 0, numCiclosBTC = 0;
 
@@ -138,7 +141,53 @@ const checkInterval = async () => {
   } else if (intervalSeconds < minInterval) {
     handleMessage(`Interval too small (${intervalSeconds}s). Must be higher than ${minInterval.toFixed(1)}s`, 'error', true);
   }
+  numCiclosPosSucesso = minutosCicloPosSucesso * 60 / Math.max(intervalSeconds, minInterval);
 };
+
+async function pegaBuyOffer() {
+  let startedAt = Date.now();
+
+  let buyOffer = null;
+
+  if (!ehCicloBRL || !falhaBRL) { //se é ciclo BTC ou não houve falha BRL anterior
+    buyOffer = await bc.offer({
+      amount,
+      isQuote: ehCicloBRL,
+      op: 'buy',
+    });
+  }
+
+  let finishedAt = Date.now();
+
+  if ((verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0)) && buyOffer)
+    handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
+
+  return buyOffer;
+};
+
+async function pegaSellOffer() {
+  let startedAt = Date.now();
+
+  let sellOffer = null;
+
+  if (ehCicloBRL || !falhaBTC) { //se é ciclo BRL ou não houve falha BTC anterior
+    sellOffer = await bc.offer({
+      amount,
+      isQuote: ehCicloBRL,
+      op: 'sell',
+    });
+
+    if ((ehCicloBRL && numCiclosBRL <= 0 && !falhaBRL) || (!ehCicloBRL && numCiclosBTC <= 0))
+      atualizaProporcoes(sellOffer.efPrice);
+  }
+
+  let finishedAt = Date.now();
+
+  if ((verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0)) && sellOffer)
+    handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
+
+  return sellOffer;
+}
 
 let tradeCycleCount = 0;
 
@@ -198,44 +247,8 @@ async function tradeCycle() {
 
   try {
 
-    startedAt = Date.now();
-
-    let buyOffer = null;
-
-    if (!ehCicloBRL || !falhaBRL) { //se é ciclo BTC ou não houve falha BRL anterior
-      buyOffer = await bc.offer({
-        amount,
-        isQuote: ehCicloBRL,
-        op: 'buy',
-      });
-    }
-
-    finishedAt = Date.now();
-
-    if ((verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0)) && buyOffer)
-      handleMessage(`[${tradeCycleCount}] Got buy offer: ${buyOffer.efPrice} (${finishedAt - startedAt} ms)`);
-
-    startedAt = Date.now();
-
-    let sellOffer = null;
-
-    if (ehCicloBRL || !falhaBTC) { //se é ciclo BRL ou não houve falha BTC anterior
-      sellOffer = await bc.offer({
-        amount,
-        isQuote: ehCicloBRL,
-        op: 'sell',
-      });
-
-      if ((ehCicloBRL && numCiclosBRL <= 0 && !falhaBRL) || (!ehCicloBRL && numCiclosBTC <= 0))
-        atualizaProporcoes(sellOffer.efPrice);
-    }
-
-    finishedAt = Date.now();
-
-    if ((verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0)) && sellOffer)
-      handleMessage(`[${tradeCycleCount}] Got sell offer: ${sellOffer.efPrice} (${finishedAt - startedAt} ms)`);
-
-    
+    let buyOffer = pegaBuyOffer();
+    let sellOffer = pegaSellOffer();
 
     if (ehCicloBRL) {
       precoCompra = falhaBRL ? ultimoPrecoBRL : buyOffer.efPrice
@@ -299,10 +312,12 @@ async function tradeCycle() {
           q1 = falhaBRL ? outraQuantidadeBRL : firstLeg.baseAmount;
           q2 = secondLeg.baseAmount;
           decimalPlaces = 8;
+          numCiclosBRL = numCiclosPosSucesso;
         } else {
           q1 = falhaBTC ? outraQuantidadeBTC : firstLeg.quoteAmount;
           q2 = secondLeg.quoteAmount;
           decimalPlaces = 2;
+          numCiclosBTC = numCiclosPosSucesso;
         }
 
         let lucroAbs = q1 - q2;
@@ -399,10 +414,12 @@ async function tradeCycle() {
                       q1 = firstLeg.baseAmount;
                       q2 = secondLeg.baseAmount;
                       decimalPlaces = 8;
+                      numCiclosBRL = numCiclosPosSucesso;
                     } else {
                       q1 = firstLeg.quoteAmount;
                       q2 = secondLeg.quoteAmount;
                       decimalPlaces = 2;
+                      numCiclosBTC = numCiclosPosSucesso;
                     }
 
                     let lucroAbs = q1 - q2;
