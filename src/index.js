@@ -219,9 +219,9 @@ async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
 
-  if (ehCicloBRL && amountBRL < 100 && !falhaBRL)
+  if (ehCicloBRL && amountBRL < 100 && !falhaBRL) //se é ciclo BRL e saldo BRL = 0 e não houve falha BRL
     ehCicloBRL = false;
-  else if (!ehCicloBRL && amountBTC < 0.0004 && !falhaBTC)
+  else if (!ehCicloBRL && amountBTC < 0.0004 && !falhaBTC) //se é ciclo BTC e saldo BTC = 0 e não houve falha BTC
     ehCicloBRL = true;
   else if (falhaBRL && falhaBTC)
     ehCicloBRL = (amountBRL < 100);
