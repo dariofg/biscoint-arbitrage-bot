@@ -144,7 +144,7 @@ const checkInterval = async () => {
   numCiclosPosSucesso = minutosCicloPosSucesso * 60 / Math.max(intervalSeconds, minInterval);
 };
 
-async function pegaBuyOffer() {
+async function pegaBuyOffer(amount) {
   let startedAt = Date.now();
 
   let buyOffer = null;
@@ -165,7 +165,7 @@ async function pegaBuyOffer() {
   return buyOffer;
 };
 
-async function pegaSellOffer() {
+async function pegaSellOffer(amount) {
   let startedAt = Date.now();
 
   let sellOffer = null;
@@ -247,8 +247,8 @@ async function tradeCycle() {
 
   try {
 
-    let buyOffer = pegaBuyOffer();
-    let sellOffer = pegaSellOffer();
+    let buyOffer = await pegaBuyOffer(amount);
+    let sellOffer = await pegaSellOffer(amount);
 
     if (ehCicloBRL) {
       precoCompra = falhaBRL ? ultimoPrecoBRL : buyOffer.efPrice
