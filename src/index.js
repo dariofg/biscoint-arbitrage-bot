@@ -247,13 +247,20 @@ async function tradeCycle() {
 
   try {
 
-    let buyOffer = await pegaBuyOffer(amount);
-    let sellOffer = await pegaSellOffer(amount);
+    let buyOffer, sellOffer;
 
     if (ehCicloBRL) {
+      // oferta de compra primeiro
+      buyOffer = await pegaBuyOffer(amount);
+      sellOffer = await pegaSellOffer(amount);
+
       precoCompra = falhaBRL ? ultimoPrecoBRL : buyOffer.efPrice
       precoVenda = sellOffer.efPrice;
     } else {
+      // oferta de venda primeiro
+      sellOffer = await pegaSellOffer(amount);
+      buyOffer = await pegaBuyOffer(amount);
+
       precoVenda = falhaBTC ? ultimoPrecoBTC : sellOffer.efPrice;
       precoCompra = buyOffer.efPrice
     }
