@@ -6,14 +6,12 @@ import config from './config.js';
 // read the configurations
 let {
   apiKey, apiSecret, minProfitPercent, intervalSeconds, playSound, simulation,
-  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC, proportionalCycles, adaptiveAmounts
+  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC, proportionalCycles, adaptiveAmounts, verbose
 } = config;
 
 //read CLI arguments
 
 let myArgs = process.argv.slice(2);
-
-let verbose = false;
 
 if (myArgs.length == 1 && myArgs[0] == 'verbose')
   verbose = true;
