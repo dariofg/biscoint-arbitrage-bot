@@ -25,6 +25,7 @@ const numCiclosDebug = 53;
 const minutosCicloPosSucesso = 4; // minutos a permanecer no ciclo atual após um sucesso
 
 let numCiclosPosSucesso = minutosCicloPosSucesso * 60 / 4; // vai ajustar o "4" mais tarde
+let ultimosSucessos = [];
 
 let numCiclosBRL = 0, numCiclosBTC = 0;
 
@@ -241,6 +242,7 @@ async function tradeCycle() {
   let precoCompra = 0;
   let precoVenda = 0;
   let profit = 0;
+  let foiSucesso = false;
 
   if (verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0))
     handleMessage(`[${tradeCycleCount}] Trade cycle started ${ehCicloBRL ? 'BRL' : 'BTC'} (${amount})...`);
@@ -271,10 +273,10 @@ async function tradeCycle() {
     profit = percent(precoCompra, precoVenda);
 
     if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
-      executar = ((!tevePrejuizo && profit >= -minProfitPercent) ||
-        (tevePrejuizo && profit >= 0));
+      executar = (!tevePrejuizo && profit >= -minProfitPercent) ||
+        (tevePrejuizo && profit >= 0);
     else
-      executar = (profit >= minProfitPercent);
+      executar = profit >= minProfitPercent;
 
     if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
@@ -326,6 +328,7 @@ async function tradeCycle() {
           decimalPlaces = 2;
           numCiclosBTC = numCiclosPosSucesso;
         }
+        foiSucesso = true;
 
         let lucroAbs = q1 - q2;
 
@@ -428,6 +431,7 @@ async function tradeCycle() {
                       decimalPlaces = 2;
                       numCiclosBTC = numCiclosPosSucesso;
                     }
+                    foiSucesso = true;
 
                     let lucroAbs = q1 - q2;
                     logProfit(lucroAbs.toFixed(decimalPlaces));
@@ -491,6 +495,10 @@ async function tradeCycle() {
     console.error(error);
   }
 
+  ultimosSucessos.push(foiSucesso);
+  if (ultimosSucessos.length > 10)
+    ultimosSucessos.shift();
+
   const tradeCycleFinishedAt = Date.now();
   const tradeCycleElapsedMs = parseFloat(tradeCycleFinishedAt - tradeCycleStartedAt);
   const shouldWaitMs = Math.max(Math.ceil((intervalSeconds * 1000.0) - tradeCycleElapsedMs), 0);
@@ -535,7 +543,7 @@ async function tradeCycle() {
     console.log(`amount: ${amount}`);
     console.log(`precoCompra: ${precoCompra}`);
     console.log(`precoVenda: ${precoVenda}`);
-    console.log(`profit: ${profit}`);
+    console.log(`profit: ${profit.toFixed(3)}%`);
     console.log(`executar: ${executar}`);
   }
 
