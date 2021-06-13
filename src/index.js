@@ -6,7 +6,7 @@ import config from './config.js';
 // read the configurations
 let {
   apiKey, apiSecret, minProfitPercent, intervalSeconds, playSound, simulation,
-  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC, proportionalCycles, adaptiveValues
+  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC, proportionalCycles, adaptiveAmounts
 } = config;
 
 //read CLI arguments
@@ -240,7 +240,7 @@ async function tradeCycle() {
     amount = ultimaQuantidadeBRL;
   else if (falhaBTC && !ehCicloBRL)
     amount = ultimaQuantidadeBTC;
-  else if (adaptiveValues)
+  else if (adaptiveAmounts)
   {
     if (ehCicloBRL)
       amount = Math.min(amountBRL, valorBaseBRL * fatorValorAdaptavelBRL);
@@ -511,7 +511,7 @@ async function tradeCycle() {
   }
 
   // valor adaptável
-  if (adaptiveValues)
+  if (adaptiveAmounts)
   {
     if (foiSucesso)
     {

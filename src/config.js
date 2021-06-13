@@ -17,7 +17,7 @@ const config = {
   maxAmountBRL: null,
   maxAmountBTC: null,
   proportionalCycles: true,
-	adaptiveValues: false
+	adaptiveAmounts: false
 };
 
 try {
