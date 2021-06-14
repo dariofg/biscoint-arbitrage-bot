@@ -6,14 +6,12 @@ import config from './config.js';
 // read the configurations
 let {
   apiKey, apiSecret, minProfitPercent, intervalSeconds, playSound, simulation,
-  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC, proportionalCycles
+  executeMissedSecondLeg, maxAmountBRL, maxAmountBTC, proportionalCycles, adaptiveAmounts, verbose
 } = config;
 
 //read CLI arguments
 
 let myArgs = process.argv.slice(2);
-
-let verbose = false;
 
 if (myArgs.length == 1 && myArgs[0] == 'verbose')
   verbose = true;
@@ -25,8 +23,18 @@ let imprimirDebug = false;
 
 const numCiclosDebug = 53;
 const minutosCicloPosSucesso = 4; // minutos a permanecer no ciclo atual após um sucesso
+let numCiclosPosSucesso;
 
-let numCiclosPosSucesso = minutosCicloPosSucesso * 60 / 4; // vai ajustar o "4" mais tarde
+// função de muda valor das operações baseado nos últimos sucessos
+const minutosMudaValorAdaptavel = 5;
+const multiplicadorSucesso = 2;
+const divisorSemSucesso = 1.4142; // sqrt(2)
+const valorBaseBRL = 2000;
+const valorBaseBTC = 0.01048; // cotado a R$ 190.712,67
+let fatorValorAdaptavelBRL = 1;
+let fatorValorAdaptavelBTC = 1;
+let ultimaHoraMudouValorBTC = Date.now();
+let ultimaHoraMudouValorBRL = Date.now();
 
 let numCiclosBRL = 0, numCiclosBTC = 0;
 
@@ -220,9 +228,10 @@ if (fs.existsSync('./data.json')) {
 async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
+  let amount = 0;
 
   imprimirDebug = false;
-  
+
   if (falhaBRL || falhaBTC)
     imprimirDebug = true;
 
@@ -233,13 +242,19 @@ async function tradeCycle() {
   else if (falhaBRL && falhaBTC)
     ehCicloBRL = (amountBRL < 100);
 
-  let amount = 0;
-
-  if (ehCicloBRL) {
-    amount = falhaBRL ? ultimaQuantidadeBRL : amountBRL;
-  } else {
-    amount = falhaBTC ? ultimaQuantidadeBTC : amountBTC;
+  if (falhaBRL && ehCicloBRL)
+    amount = ultimaQuantidadeBRL;
+  else if (falhaBTC && !ehCicloBRL)
+    amount = ultimaQuantidadeBTC;
+  else if (adaptiveAmounts)
+  {
+    if (ehCicloBRL)
+      amount = Math.min(amountBRL, valorBaseBRL * fatorValorAdaptavelBRL);
+    else
+      amount = Math.min(amountBTC, valorBaseBTC * fatorValorAdaptavelBTC);
   }
+  else
+    amount = ehCicloBRL ? amountBRL : amountBTC;
 
   tradeCycleCount++;
   const tradeCycleStartedAt = Date.now();
@@ -248,6 +263,7 @@ async function tradeCycle() {
   let precoCompra = 0;
   let precoVenda = 0;
   let profit = 0;
+  let foiSucesso = false;
 
   if (verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0))
     handleMessage(`[${tradeCycleCount}] Trade cycle started ${ehCicloBRL ? 'BRL' : 'BTC'} (${amount})...`);
@@ -278,10 +294,10 @@ async function tradeCycle() {
     profit = percent(precoCompra, precoVenda);
 
     if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
-      executar = ((!tevePrejuizo && profit >= -minProfitPercent) ||
-        (tevePrejuizo && profit >= 0));
+      executar = (!tevePrejuizo && profit >= -minProfitPercent) ||
+        (tevePrejuizo && profit >= 0);
     else
-      executar = (profit >= minProfitPercent);
+      executar = profit >= minProfitPercent;
 
     if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
@@ -334,6 +350,7 @@ async function tradeCycle() {
           decimalPlaces = 2;
           numCiclosBTC = numCiclosPosSucesso;
         }
+        foiSucesso = true;
 
         let lucroAbs = q1 - q2;
 
@@ -436,6 +453,7 @@ async function tradeCycle() {
                       decimalPlaces = 2;
                       numCiclosBTC = numCiclosPosSucesso;
                     }
+                    foiSucesso = true;
 
                     let lucroAbs = q1 - q2;
                     logProfit(lucroAbs.toFixed(decimalPlaces));
@@ -499,6 +517,42 @@ async function tradeCycle() {
     console.error(error);
   }
 
+  // valor adaptável
+  if (adaptiveAmounts)
+  {
+    if (foiSucesso)
+    {
+      if (ehCicloBRL)
+      {
+        fatorValorAdaptavelBRL *= multiplicadorSucesso;
+        ultimaHoraMudouValorBRL = Date.now();
+        let novoAmount = Math.min(amountBRL, fatorValorAdaptavelBRL * valorBaseBRL);
+        handleMessage(`[${tradeCycleCount}] Valor adaptável BRL subiu para R$ ${novoAmount.toFixed(2)}`);
+      }
+      else
+      {
+        fatorValorAdaptavelBTC *= multiplicadorSucesso;
+        ultimaHoraMudouValorBTC = Date.now();
+        let novoAmount = Math.min(amountBTC, fatorValorAdaptavelBTC * valorBaseBTC);
+        handleMessage(`[${tradeCycleCount}] Valor adaptável BTC subiu para ${novoAmount.toFixed(8)}`);
+      }
+    }
+    else if (ehCicloBRL && Date.now() - ultimaHoraMudouValorBRL >= minutosMudaValorAdaptavel * 60000)
+    {
+      fatorValorAdaptavelBRL = Math.max(1, fatorValorAdaptavelBRL / divisorSemSucesso);
+      ultimaHoraMudouValorBRL = Date.now();
+      let novoAmount = fatorValorAdaptavelBRL * valorBaseBRL;
+      handleMessage(`[${tradeCycleCount}] Valor adaptável baixou para R$ ${novoAmount.toFixed(2)}`);
+    }
+    else if (!ehCicloBRL && Date.now() - ultimaHoraMudouValorBTC >= minutosMudaValorAdaptavel * 60000)
+    {
+      fatorValorAdaptavelBTC = Math.max(1, fatorValorAdaptavelBTC / divisorSemSucesso);
+      ultimaHoraMudouValorBTC = Date.now();
+      let novoAmount = fatorValorAdaptavelBTC * valorBaseBTC;
+      handleMessage(`[${tradeCycleCount}] Valor adaptável BTC baixou para ${novoAmount.toFixed(8)}`);
+    }
+  }
+
   const tradeCycleFinishedAt = Date.now();
   const tradeCycleElapsedMs = parseFloat(tradeCycleFinishedAt - tradeCycleStartedAt);
   const shouldWaitMs = Math.max(Math.ceil((intervalSeconds * 1000.0) - tradeCycleElapsedMs), 0);
@@ -506,7 +560,6 @@ async function tradeCycle() {
   if (verbose)
   {
     handleMessage(`[${tradeCycleCount}] Cycle took ${tradeCycleElapsedMs} ms`);
-
     handleMessage(`[${tradeCycleCount}] New cycle in ${shouldWaitMs} ms...`);
   }
 
