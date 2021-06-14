@@ -30,7 +30,7 @@ const minutosMudaValorAdaptavel = 5;
 const multiplicadorSucesso = 2;
 const divisorSemSucesso = 1.4142; // sqrt(2)
 const valorBaseBRL = 2000;
-const valorBaseBTC = 0.01048; // cotado a R$ 190.712,67
+let valorBaseBTC = 0.01048; // cotado a R$ 190.712,67
 let fatorValorAdaptavelBRL = 1;
 let fatorValorAdaptavelBTC = 1;
 let ultimaHoraMudouValorBTC = Date.now();
@@ -186,6 +186,8 @@ async function pegaSellOffer(amount) {
       isQuote: ehCicloBRL,
       op: 'sell',
     });
+
+    valorBaseBTC = 2000 / sellOffer.efPrice;
 
     if ((ehCicloBRL && numCiclosBRL <= 0 && !falhaBRL) || (!ehCicloBRL && numCiclosBTC <= 0))
       atualizaProporcoes(sellOffer.efPrice);
