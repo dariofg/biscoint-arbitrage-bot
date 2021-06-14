@@ -25,8 +25,8 @@ let numCiclosPosSucesso;
 
 // função de muda valor das operações baseado nos últimos sucessos
 const minutosMudaValorAdaptavel = 5;
-const multiplicadorSucesso = 1.5;
-const divisorSemSucesso = 1.224; // sqrt(1.5)
+const multiplicadorSucesso = 2;
+const divisorSemSucesso = 1.4142; // sqrt(2)
 const valorBaseBRL = 2000;
 const valorBaseBTC = 0.01048; // cotado a R$ 190.712,67
 let fatorValorAdaptavelBRL = 1;
