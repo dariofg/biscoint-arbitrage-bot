@@ -187,7 +187,7 @@ async function pegaSellOffer(amount) {
       op: 'sell',
     });
 
-    valorBaseBTC = 2000 / sellOffer.efPrice;
+    valorBaseBTC = valorBaseBRL / sellOffer.efPrice;
 
     if ((ehCicloBRL && numCiclosBRL <= 0 && !falhaBRL) || (!ehCicloBRL && numCiclosBTC <= 0))
       atualizaProporcoes(sellOffer.efPrice);
