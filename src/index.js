@@ -21,6 +21,7 @@ let bc, lastTrade = 0, ehCicloBRL, balances, amountBRL, amountBTC;
 
 const numCiclosDebug = 53;
 const minutosCicloPosSucesso = 4; // minutos a permanecer no ciclo atual após um sucesso
+let numCiclosPosSucesso;
 
 // função de muda valor das operações baseado nos últimos sucessos
 const minutosMudaValorAdaptavel = 5;
@@ -535,7 +536,7 @@ async function tradeCycle() {
       let novoAmount = fatorValorAdaptavelBRL * valorBaseBRL;
       handleMessage(`[${tradeCycleCount}] Valor adaptável baixou para R$ ${novoAmount.toFixed(2)}`);
     }
-    else if (ehCicloBTC && Date.now() - ultimaHoraMudouValorBTC >= minutosMudaValorAdaptavel * 60000)
+    else if (!ehCicloBRL && Date.now() - ultimaHoraMudouValorBTC >= minutosMudaValorAdaptavel * 60000)
     {
       fatorValorAdaptavelBTC = Math.max(1, fatorValorAdaptavelBTC / divisorSemSucesso);
       ultimaHoraMudouValorBTC = Date.now();
