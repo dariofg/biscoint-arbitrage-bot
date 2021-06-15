@@ -19,6 +19,8 @@ if (myArgs.length == 1 && myArgs[0] == 'verbose')
 // global variables
 let bc, lastTrade = 0, ehCicloBRL, balances, amountBRL, amountBTC;
 
+let imprimirDebug = false;
+
 const numCiclosDebug = 53;
 const minutosCicloPosSucesso = 10; // minutos a permanecer no ciclo atual após um sucesso
 let numCiclosPosSucesso;
@@ -28,7 +30,7 @@ const minutosMudaValorAdaptavel = 30;
 const multiplicadorSucesso = 2;
 const divisorSemSucesso = 1.4142; // sqrt(2)
 const valorBaseBRL = 2000;
-const valorBaseBTC = 0.01048; // cotado a R$ 190.712,67
+let valorBaseBTC = 0.01048; // cotado a R$ 190.712,67
 let fatorValorAdaptavelBRL = 1;
 let fatorValorAdaptavelBTC = 1;
 let ultimaHoraMudouValorBTC = Date.now();
@@ -185,6 +187,8 @@ async function pegaSellOffer(amount) {
       op: 'sell',
     });
 
+    valorBaseBTC = valorBaseBRL / sellOffer.efPrice;
+
     if ((ehCicloBRL && numCiclosBRL <= 0 && !falhaBRL) || (!ehCicloBRL && numCiclosBTC <= 0))
       atualizaProporcoes(sellOffer.efPrice);
   }
@@ -227,6 +231,11 @@ async function tradeCycle() {
   let startedAt = 0;
   let finishedAt = 0;
   let amount = 0;
+
+  imprimirDebug = false;
+
+  if (falhaBRL || falhaBTC)
+    imprimirDebug = true;
 
   if (ehCicloBRL && amountBRL < 100 && !falhaBRL) //se é ciclo BRL e saldo BRL = 0 e não houve falha BRL
     ehCicloBRL = false;
@@ -299,6 +308,7 @@ async function tradeCycle() {
       handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
 
     if (executar) {
+      imprimirDebug = true;
       let firstOffer, secondOffer, firstLeg, secondLeg;
       try {
         if (ehCicloBRL) {
@@ -574,7 +584,7 @@ async function tradeCycle() {
 
   }
 
-  if ((tradeCycleCount - 1) % numCiclosDebug == 0)
+  if (imprimirDebug || ((tradeCycleCount - 1) % numCiclosDebug == 0))
   {
     console.log(`falhaBRL: ${falhaBRL}`);
     console.log(`ultimoPrecoBRL: ${ultimoPrecoBRL}`);
@@ -586,9 +596,12 @@ async function tradeCycle() {
     console.log(`ultimaQuantidadeBTC: ${ultimaQuantidadeBTC}`);
     console.log(`tevePrejuizo: ${tevePrejuizo}`);
     console.log(`amount: ${amount}`);
+    console.log(`amountBRL: ${amountBRL}`);
+    console.log(`amountBTC: ${amountBTC}`);
     console.log(`precoCompra: ${precoCompra}`);
     console.log(`precoVenda: ${precoVenda}`);
-    console.log(`profit: ${profit.toFixed(3)}%`);
+    console.log(`profit: ${profit}`);
+    console.log(`minProfitPercent: ${minProfitPercent}`);
     console.log(`executar: ${executar}`);
   }
 
