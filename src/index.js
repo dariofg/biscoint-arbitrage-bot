@@ -159,13 +159,13 @@ async function pegaBuyOffer(amount) {
 
   let buyOffer = null;
 
-  if (!ehCicloBRL || !falhaBRL) { //se é ciclo BTC ou não houve falha BRL anterior
+  //if (!ehCicloBRL || !falhaBRL) { //se é ciclo BTC ou não houve falha BRL anterior
     buyOffer = await bc.offer({
       amount,
       isQuote: ehCicloBRL,
       op: 'buy',
     });
-  }
+  //}
 
   let finishedAt = Date.now();
 
@@ -180,7 +180,7 @@ async function pegaSellOffer(amount) {
 
   let sellOffer = null;
 
-  if (ehCicloBRL || !falhaBTC) { //se é ciclo BRL ou não houve falha BTC anterior
+  //if (ehCicloBRL || !falhaBTC) { //se é ciclo BRL ou não houve falha BTC anterior
     sellOffer = await bc.offer({
       amount,
       isQuote: ehCicloBRL,
@@ -191,7 +191,7 @@ async function pegaSellOffer(amount) {
 
     if ((ehCicloBRL && numCiclosBRL <= 0 && !falhaBRL) || (!ehCicloBRL && numCiclosBTC <= 0))
       atualizaProporcoes(sellOffer.efPrice);
-  }
+  //}
 
   let finishedAt = Date.now();
 
@@ -234,15 +234,15 @@ async function tradeCycle() {
 
   imprimirDebug = false;
 
-  if (falhaBRL || falhaBTC)
-    imprimirDebug = true;
+  //if (falhaBRL || falhaBTC)
+  //  imprimirDebug = true;
 
-  if (ehCicloBRL && amountBRL < 100 && !falhaBRL) //se é ciclo BRL e saldo BRL = 0 e não houve falha BRL
+  if (ehCicloBRL && amountBRL < 200 && !falhaBRL) //se é ciclo BRL e saldo BRL = 0 e não houve falha BRL
     ehCicloBRL = false;
   else if (!ehCicloBRL && amountBTC < 0.0004 && !falhaBTC) //se é ciclo BTC e saldo BTC = 0 e não houve falha BTC
     ehCicloBRL = true;
   else if (falhaBRL && falhaBTC)
-    ehCicloBRL = (amountBRL < 100);
+    ehCicloBRL = (amountBRL < 200);
 
   if (falhaBRL && ehCicloBRL)
     amount = ultimaQuantidadeBRL;
@@ -290,22 +290,38 @@ async function tradeCycle() {
       precoCompra = buyOffer.efPrice
     }
 
-    if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
-      handleMessage(`[${tradeCycleCount}] PrecoCompra: ${precoCompra} PrecoVenda ${precoVenda}`);
+    //if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
+    //  handleMessage(`[${tradeCycleCount}] PrecoCompra: ${precoCompra} PrecoVenda ${precoVenda}`);
 
     profit = percent(precoCompra, precoVenda);
 
-    if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC))
+    if (verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0))
+      handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
+
+    if ((ehCicloBRL && falhaBRL) || (!ehCicloBRL && falhaBTC)) {
       executar = (!tevePrejuizo && profit >= -minProfitPercent) ||
         (tevePrejuizo && profit >= 0);
-    else
+
+      if (!executar && ( (ehCicloBRL && !falhaBTC) || (!ehCicloBRL && !falhaBRL) ) ) {
+        profit = percent(buyOffer.efPrice, sellOffer.efPrice);
+
+        if (verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0))
+          handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
+
+        executar = profit >= minProfitPercent;
+
+        if (executar) {
+          ehCicloBRL = !ehCicloBRL;
+        }
+
+      }
+    } else
       executar = profit >= minProfitPercent;
 
     if (!executar && tevePrejuizo && profit >= -minProfitPercent && profit < 0)
       handleMessage(`[${tradeCycleCount}] Execution canceled due to previous loss (1)`);
 
-    if (verbose || ((tradeCycleCount - 1) % numCiclosDebug == 0))
-      handleMessage(`[${tradeCycleCount}] Calculated profit: ${profit.toFixed(3)}%`);
+
 
     if (executar) {
       imprimirDebug = true;
