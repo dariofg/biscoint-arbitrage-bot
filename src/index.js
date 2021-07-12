@@ -22,11 +22,11 @@ let bc, lastTrade = 0, ehCicloBRL, balances, amountBRL, amountBTC;
 let imprimirDebug = false;
 
 const numCiclosDebug = 53;
-const minutosCicloPosSucesso = 4; // minutos a permanecer no ciclo atual após um sucesso
+const minutosCicloPosSucesso = 10; // minutos a permanecer no ciclo atual após um sucesso
 let numCiclosPosSucesso;
 
 // função de muda valor das operações baseado nos últimos sucessos
-const minutosMudaValorAdaptavel = 5;
+const minutosMudaValorAdaptavel = 30;
 const multiplicadorSucesso = 2;
 const divisorSemSucesso = 1.4142; // sqrt(2)
 const valorBaseBRL = 2000;
@@ -251,9 +251,9 @@ async function tradeCycle() {
   else if (adaptiveAmounts)
   {
     if (ehCicloBRL)
-      amount = Math.min(amountBRL, valorBaseBRL * fatorValorAdaptavelBRL);
+      amount = Math.min(amountBRL, valorBaseBRL * fatorValorAdaptavelBRL).toFixed(2);
     else
-      amount = Math.min(amountBTC, valorBaseBTC * fatorValorAdaptavelBTC);
+      amount = Math.min(amountBTC, valorBaseBTC * fatorValorAdaptavelBTC).toFixed(8);
   }
   else
     amount = ehCicloBRL ? amountBRL : amountBTC;
